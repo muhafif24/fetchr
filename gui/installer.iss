@@ -31,7 +31,6 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "..\dist\yt-dlp\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\gui\bin\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 ; Browser extension — copied to AppData so Fetchr can locate it at runtime
 Source: "..\extension\*"; DestDir: "{userappdata}\Fetchr\extension"; Flags: ignoreversion recursesubdirs createallsubdirs
 
@@ -40,28 +39,6 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"; \
-  StatusMsg: "Installing Microsoft Edge WebView2 Runtime..."; \
-  Check: not IsWebView2Installed; Flags: waituntilterminated
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; \
   Flags: nowait postinstall skipifsilent
 
-[Code]
-function IsWebView2Installed: Boolean;
-var
-  Version: String;
-begin
-  Result := False;
-  if RegQueryStringValue(HKLM,
-      'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-      'pv', Version) then
-    if (Version <> '') and (Version <> '0.0.0.0') then begin Result := True; Exit; end;
-  if RegQueryStringValue(HKLM,
-      'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-      'pv', Version) then
-    if (Version <> '') and (Version <> '0.0.0.0') then begin Result := True; Exit; end;
-  if RegQueryStringValue(HKCU,
-      'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
-      'pv', Version) then
-    if (Version <> '') and (Version <> '0.0.0.0') then Result := True;
-end;
