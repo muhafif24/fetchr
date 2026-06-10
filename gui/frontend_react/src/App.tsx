@@ -363,7 +363,7 @@ export default function App() {
                       <Link className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
                       <Input
                         type="text"
-                        placeholder="Paste YouTube URL (video or playlist)..."
+                        placeholder="Paste any video URL (YouTube, TikTok, Instagram, Twitter...)"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && (isPlaylistUrl(url) ? handleLoadPlaylist() : handleAnalyze())}
@@ -450,7 +450,7 @@ export default function App() {
                     </div>
                     <div className="text-center space-y-1">
                       <p className="text-sm font-medium text-zinc-600">Ready to download</p>
-                      <p className="text-xs text-zinc-700">Paste a YouTube video or playlist URL above</p>
+                      <p className="text-xs text-zinc-700">Paste a video or playlist URL above to get started</p>
                     </div>
                   </div>
                 )}

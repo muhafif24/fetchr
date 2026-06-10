@@ -6,16 +6,17 @@ import webbrowser
 import webview
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import sanitize_filename
-from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, format_size, format_duration
+from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, format_size, format_duration, migrate_legacy_app_data
 from downloader import DownloadManager
 
-APP_VERSION = "1.2.0"
-GITHUB_REPO  = "muhafif24/yt-dlp"
+APP_VERSION = "1.3.0"
+GITHUB_REPO  = "muhafif24/Fetchr"
 
 class Api:
     def __init__(self):
         self._window = None
         self._downloader = DownloadManager()
+        migrate_legacy_app_data()
         self._history_file = os.path.join(get_app_data_dir(), "history.json")
         self._ensure_history_exists()
 

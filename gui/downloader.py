@@ -4,7 +4,13 @@ import threading
 import traceback
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import sanitize_filename
-from utils import check_ffmpeg, check_js_runtime, format_size, format_duration
+from utils import check_ffmpeg, check_js_runtime, format_size, format_duration, get_resource_path
+
+try:
+    from plyer import notification as _plyer_notification
+    _PLYER_AVAILABLE = True
+except ImportError:
+    _PLYER_AVAILABLE = False
 
 class DownloadManager:
     def __init__(self, window=None):
@@ -14,6 +20,21 @@ class DownloadManager:
 
     def set_window(self, window):
         self._window = window
+
+    def _notify(self, title: str, message: str, timeout: int = 5):
+        if not _PLYER_AVAILABLE:
+            return
+        try:
+            icon_path = get_resource_path("fetchr.ico")
+            _plyer_notification.notify(
+                title=title,
+                message=message,
+                app_name="Fetchr",
+                app_icon=icon_path if os.path.exists(icon_path) else None,
+                timeout=timeout,
+            )
+        except Exception:
+            pass
 
     def _progress_hook(self, download_id, data):
         """
@@ -149,6 +170,8 @@ class DownloadManager:
                 js_code = f"if (window.onDownloadComplete) {{ window.onDownloadComplete({json.dumps(download_id)}, {json.dumps(filename)}); }}"
                 self._window.evaluate_js(js_code)
 
+            self._notify("Download Selesai", f'"{title}" berhasil diunduh.')
+
         except Exception as e:
             error_msg = str(e)
             if "cancelled" in error_msg.lower():
@@ -167,6 +190,9 @@ class DownloadManager:
             if self._window:
                 js_code = f"if (window.onDownloadError) {{ window.onDownloadError({json.dumps(download_id)}, {json.dumps(friendly_err)}); }}"
                 self._window.evaluate_js(js_code)
+
+            if status == "error":
+                self._notify("Download Gagal", f'"{title}": {friendly_err}', timeout=8)
 
         finally:
             with self.lock:

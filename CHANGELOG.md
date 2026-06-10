@@ -2,6 +2,22 @@
 
 All notable changes to Fetchr will be documented here.
 
+## [Unreleased]
+
+### Added
+- GitHub Actions CI — TypeScript + Python syntax check on every push
+- GitHub Actions auto-update checker — buat PR otomatis setiap yt-dlp rilis versi baru
+- Windows notification saat download selesai dan saat download gagal (via `plyer`)
+- Migrasi otomatis satu kali: history.json dari `%APPDATA%\yt-dlp-gui\` disalin ke `%APPDATA%\Fetchr\`
+
+### Changed
+- yt-dlp dijadikan pip dependency (`yt-dlp>=2026.06.09`), bukan bundled fork
+- URL input placeholder dibuat platform-agnostic (YouTube, TikTok, Instagram, Twitter)
+- Queue textarea contoh URL ditambah TikTok
+- AppData directory diperbaiki dari `yt-dlp-gui` → `Fetchr` — history.json kini tersimpan di `%APPDATA%\Fetchr\`
+
+---
+
 ## [1.3.0] — 2026-06-10
 
 ### Added

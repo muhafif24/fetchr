@@ -154,8 +154,38 @@ def get_app_data_dir():
     else:
         base_dir = os.path.expanduser('~')
 
-    app_dir = os.path.join(base_dir, 'yt-dlp-gui')
+    app_dir = os.path.join(base_dir, 'Fetchr')
     if not os.path.exists(app_dir):
         os.makedirs(app_dir)
 
     return app_dir
+
+
+def migrate_legacy_app_data():
+    """
+    Migrasi satu kali: salin history.json dari folder lama (yt-dlp-gui) ke folder baru (Fetchr).
+    Hanya berjalan jika folder lama ada dan file tujuan belum ada.
+    """
+    if sys.platform != 'win32':
+        return
+
+    base_dir = os.environ.get('APPDATA', '')
+    if not base_dir:
+        return
+
+    old_dir = os.path.join(base_dir, 'yt-dlp-gui')
+    new_dir = os.path.join(base_dir, 'Fetchr')
+    old_history = os.path.join(old_dir, 'history.json')
+    new_history = os.path.join(new_dir, 'history.json')
+
+    if not os.path.exists(old_history):
+        return
+    if os.path.exists(new_history):
+        return
+
+    try:
+        os.makedirs(new_dir, exist_ok=True)
+        shutil.copy2(old_history, new_history)
+        print(f"[Fetchr] History migrated: {old_history} → {new_history}")
+    except Exception as e:
+        print(f"[Fetchr] Migration warning: {e}")

@@ -85,7 +85,7 @@ export function QueueSection({
         </div>
 
         <textarea
-          placeholder={"Paste one or more URLs, one per line...\nhttps://youtube.com/watch?v=..."}
+          placeholder={"Paste one or more URLs, one per line...\nhttps://youtube.com/watch?v=...\nhttps://tiktok.com/@user/video/..."}
           value={batchInput}
           onChange={(e) => onBatchInputChange(e.target.value)}
           rows={3}

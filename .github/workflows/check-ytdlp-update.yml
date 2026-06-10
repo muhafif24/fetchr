@@ -1,0 +1,74 @@
+name: Check yt-dlp Update
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Setiap Senin jam 02:00 UTC (09:00 WIB)
+  workflow_dispatch:      # Bisa juga dijalankan manual dari GitHub
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Get latest yt-dlp version
+        id: latest
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+          echo "version=$LATEST" >> $GITHUB_OUTPUT
+          echo "Latest yt-dlp: $LATEST"
+
+      - name: Get current version in requirements.txt
+        id: current
+        run: |
+          CURRENT=$(grep 'yt-dlp>=' requirements.txt | grep -oP '\d{4}\.\d{2}\.\d{2}')
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Current yt-dlp: $CURRENT"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          if [ "${{ steps.latest.outputs.version }}" != "${{ steps.current.outputs.version }}" ]; then
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+            echo "Update needed: ${{ steps.current.outputs.version }} → ${{ steps.latest.outputs.version }}"
+          else
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+            echo "Already up to date: ${{ steps.current.outputs.version }}"
+          fi
+
+      - name: Update requirements.txt
+        if: steps.compare.outputs.needs_update == 'true'
+        run: |
+          sed -i "s/yt-dlp>=[0-9.]*/yt-dlp>=${{ steps.latest.outputs.version }}/" requirements.txt
+          echo "Updated requirements.txt"
+          cat requirements.txt
+
+      - name: Create Pull Request
+        if: steps.compare.outputs.needs_update == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update yt-dlp ${{ steps.current.outputs.version }} → ${{ steps.latest.outputs.version }}"
+          title: "⬆️ Update yt-dlp ${{ steps.current.outputs.version }} → ${{ steps.latest.outputs.version }}"
+          body: |
+            ## yt-dlp Engine Update
+
+            | | Version |
+            |---|---|
+            | **Sebelum** | `${{ steps.current.outputs.version }}` |
+            | **Sesudah** | `${{ steps.latest.outputs.version }}` |
+
+            ### Changelog
+            https://github.com/yt-dlp/yt-dlp/releases/tag/${{ steps.latest.outputs.version }}
+
+            ### Yang perlu dilakukan setelah merge
+            1. Test download beberapa URL (YouTube, TikTok, dll)
+            2. Jika tidak ada masalah, build installer baru dan publish release
+
+            ---
+            *PR ini dibuat otomatis oleh GitHub Actions*
+          branch: "chore/update-ytdlp-${{ steps.latest.outputs.version }}"
+          delete-branch: true
+          labels: "dependencies,automated"
