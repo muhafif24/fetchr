@@ -52,6 +52,7 @@ export interface PyApiInterface {
         error?: string;
     }>;
     cancel_download: (downloadId: string) => Promise<{ success: boolean }>;
+    pause_download: (downloadId: string) => Promise<{ success: boolean }>;
     get_download_history: () => Promise<Array<{
         title: string;
         url: string;

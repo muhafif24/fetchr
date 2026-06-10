@@ -395,6 +395,11 @@ class Api:
         success = self._downloader.cancel_download(download_id)
         return {"success": success}
 
+    def pause_download(self, download_id):
+        """Pause a running download. The .part file is kept on disk so it can be resumed."""
+        success = self._downloader.pause_download(download_id)
+        return {"success": success}
+
     def get_download_history(self):
         """
         Mengambil riwayat unduhan dari history.json.

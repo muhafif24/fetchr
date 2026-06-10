@@ -207,7 +207,7 @@ export default function App() {
     setActiveDownloads((prev) => {
       const item = prev[payload.id];
       if (!item) return prev;
-      return { ...prev, [payload.id]: { ...item, status: payload.status, phase: payload.phase ?? item.phase, progress: payload.progress, speed: payload.speed, downloaded: payload.downloaded, total: payload.total, eta: payload.eta } };
+      return { ...prev, [payload.id]: { ...item, status: payload.status, phase: payload.phase ?? item.phase, progress: payload.progress, speed: payload.speed, downloaded: payload.downloaded, total: payload.total, eta: payload.eta, isResuming: payload.isResuming ?? false } };
     });
   };
 
@@ -284,7 +284,7 @@ export default function App() {
     const res = await api.start_download(currentUrl, selectedFormat, outputDir, subtitleEnabled ? subtitleLang : null, embedSubs);
     if (res.success && res.download_id) {
       const dId = res.download_id;
-      setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: currentVideo.title, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel, url: currentUrl, folder: outputDir } }));
+      setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: currentVideo.title, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel, formatId: selectedFormat, url: currentUrl, folder: outputDir, isResuming: false } }));
       setCurrentVideo(null); setUrl(''); setSubtitleEnabled(false);
       setActiveTab('queue');
     } else { alert(`Failed to start download: ${res.error}`); }
@@ -329,10 +329,36 @@ export default function App() {
       if (res.success && res.download_id) {
         const dId = res.download_id;
         setQueueItems((prev) => prev.map((q) => q.id === item.id ? { ...q, status: 'downloading', downloadId: dId } : q));
-        setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: item.url, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel: queueFormat, url: item.url, folder: outputDir } }));
+        setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: item.url, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel: queueFormat, formatId: queueFormat, url: item.url, folder: outputDir, isResuming: false } }));
       } else {
         setQueueItems((prev) => prev.map((q) => q.id === item.id ? { ...q, status: 'error', error: res.error || 'Failed.' } : q));
       }
+    }
+  };
+
+  const handlePauseDownload = async (id: string) => {
+    if (!api) return;
+    await api.pause_download(id);
+    setActiveDownloads((prev) => {
+      const item = prev[id];
+      if (!item) return prev;
+      return { ...prev, [id]: { ...item, status: 'pausing' } };
+    });
+  };
+
+  const handleResumeDownload = async (id: string) => {
+    if (!api) return;
+    const item = activeDownloadsRef.current[id];
+    if (!item) return;
+    const res = await api.start_download(item.url, item.formatId, item.folder);
+    if (res.success && res.download_id) {
+      const newId = res.download_id;
+      setActiveDownloads((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        copy[newId] = { ...item, id: newId, status: 'starting', progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', isResuming: false };
+        return copy;
+      });
     }
   };
 
@@ -541,6 +567,8 @@ export default function App() {
                 <ActiveDownloads
                   downloads={standaloneDownloads}
                   onCancel={(id) => api?.cancel_download(id)}
+                  onPause={handlePauseDownload}
+                  onResume={handleResumeDownload}
                   onDismiss={(id) => setActiveDownloads((prev) => { const c = { ...prev }; delete c[id]; return c; })}
                 />
               </div>

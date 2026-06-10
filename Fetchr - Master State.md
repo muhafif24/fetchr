@@ -95,6 +95,7 @@ Python → JS:   window.evaluate_js("if (window.fn) { window.fn(json.dumps(data)
 - Migrasi otomatis history dari `%APPDATA%\yt-dlp-gui\` → `%APPDATA%\Fetchr\`
 - Settings page (tab di Sidebar) — General, Notifications, Advanced; disimpan ke `%APPDATA%\Fetchr\settings.json`
 - FFmpeg on-demand — modal setup saat FFmpeg tidak ada, download ~90 MB ke `%APPDATA%\Fetchr\bin\`, progress real-time
+- Resume download — tombol Pause/Resume di ActiveDownloads; `.part` file dipertahankan via `continuedl: True`; badge "Resuming" saat lanjut dari file sebelumnya
 
 ### 🔄 In Progress
 
@@ -106,9 +107,6 @@ Detail implementasi setiap fitur ada di `docs-local/`.
 
 | Prioritas | Fitur | File |
 |-----------|-------|------|
-| 🔴 High | Settings page (folder default, format, notif preference) | `docs-local/settings-page.md` |
-| 🔴 High | FFmpeg on-demand download (kurangi ukuran dari 444MB → ~80MB) | `docs-local/ffmpeg-on-demand.md` |
-| 🟡 Medium | Resume download yang terputus | `docs-local/resume-download.md` |
 | 🟢 Long | Browser extension companion | `docs-local/browser-extension.md` |
 
 ---
@@ -131,6 +129,7 @@ Detail implementasi setiap fitur ada di `docs-local/`.
 | 2026-06-10 | Windows notification via `plyer` dengan graceful fallback | Notif muncul di pojok kanan bawah Windows saat download selesai/gagal; app tidak crash jika plyer belum terinstall |
 | 2026-06-10 | Settings page — simpan ke `%APPDATA%\Fetchr\settings.json` | Fondasi untuk semua preferensi user; concurrent semaphore, rate limit, proxy, dan cookie file diterapkan ke ydl_opts tanpa restart |
 | 2026-06-10 | FFmpeg on-demand — download ke `%APPDATA%\Fetchr\bin\` | Menghilangkan FFmpeg dari bundle; installer turun dari ~444 MB ke ~80 MB; `check_ffmpeg()` cek appdata pertama |
+| 2026-06-10 | Resume download via Pause/Resume buttons | Bedakan Cancel (hapus .part) vs Pause (simpan .part); `continuedl: True` di ydl_opts; `_PauseDownload` exception agar thread berhenti bersih |
 
 ---
 
@@ -153,8 +152,7 @@ Detail implementasi setiap fitur ada di `docs-local/`.
 
 Urutan fitur yang disarankan (lihat `docs-local/` untuk detail implementasi):
 
-1. **Resume download** — bedakan Cancel vs Pause, tombol Pause di ActiveDownloads (~1 hari)
-2. **Browser extension** — Python HTTP bridge di port 9099 + Chrome/Edge extension (~2-3 hari)
+1. **Browser extension** — Python HTTP bridge di port 9099 + Chrome/Edge extension (~2-3 hari)
 
 ---
 

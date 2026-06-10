@@ -15,6 +15,7 @@ All notable changes to Fetchr will be documented here.
   - Advanced: concurrent downloads (1–5), rate limit, proxy, cookie file
 - Settings disimpan ke `%APPDATA%\Fetchr\settings.json` dan diterapkan ke runtime tanpa restart
 - FFmpeg on-demand: modal setup otomatis saat FFmpeg tidak terdeteksi, download ~90 MB ke `%APPDATA%\Fetchr\bin\`
+- Resume download: tombol Pause dan Resume di active downloads card; `.part` file dipertahankan saat pause; badge "Resuming" ditampilkan saat melanjutkan unduhan
 
 ### Changed
 - yt-dlp dijadikan pip dependency (`yt-dlp>=2026.06.09`), bukan bundled fork
