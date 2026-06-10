@@ -172,7 +172,7 @@ export function QueueSection({
                       ) : (
                         <Progress value={live.progress} className="h-1 bg-zinc-950" />
                       )}
-                      <div className="flex justify-between text-[10px] text-zinc-600">
+                      <div className="flex justify-between text-[10px] text-zinc-500">
                         <span>{isMerging ? 'Merging with FFmpeg…' : live.phase >= 2 ? `Audio · ${live.speed}` : `Video · ${live.speed}`}</span>
                         {!isMerging && (
                           <span className="text-zinc-400 tabular-nums">{live.progress}%</span>
@@ -207,7 +207,7 @@ export function QueueSection({
 
       {/* Empty state */}
       {queueItems.length === 0 && (
-        <div className="text-center py-12 text-zinc-700 text-sm select-none">
+        <div className="text-center py-12 text-zinc-500 text-sm select-none">
           No items in queue. Add URLs above or use the Download tab.
         </div>
       )}

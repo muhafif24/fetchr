@@ -249,7 +249,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
                   </span>
                 )}
               </div>
-              <p className="text-xs text-zinc-600 mt-0.5 truncate">
+              <p className="text-xs text-zinc-500 mt-0.5 truncate">
                 {ffmpegAvailable
                   ? (ffmpegSource === 'appdata' ? '%APPDATA%\\Fetchr\\bin\\' : ffmpegSource === 'bundled' ? 'Bundled' : 'System PATH')
                   : 'Required for merging, audio extraction, and subtitles'}
@@ -273,7 +273,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
           <div className="flex items-center gap-2">
             <Puzzle className="h-3.5 w-3.5 text-violet-400 shrink-0" />
             <span className="text-sm text-zinc-300">Bridge token</span>
-            <span className="text-xs text-zinc-600 ml-auto">Port {bridgePort}</span>
+            <span className="text-xs text-zinc-500 ml-auto">Port {bridgePort}</span>
           </div>
           <div className="flex gap-2">
             <div className="flex-1 font-mono text-xs bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-zinc-400 truncate select-all">
@@ -297,7 +297,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
               <RefreshCw className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <p className="text-xs text-zinc-600">Copy this token and paste it into the Fetchr Companion extension popup.</p>
+          <p className="text-xs text-zinc-500">Copy this token and paste it into the Fetchr Companion extension popup.</p>
         </div>
 
         {/* Extension folder */}
@@ -406,7 +406,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     <div className="px-4 py-3 space-y-1.5">
       <div className="flex items-baseline gap-2">
         <label className="text-sm text-zinc-300">{label}</label>
-        {hint && <span className="text-xs text-zinc-600">{hint}</span>}
+        {hint && <span className="text-xs text-zinc-500">{hint}</span>}
       </div>
       {children}
     </div>
@@ -431,7 +431,7 @@ function Toggle({
     >
       <div>
         <p className="text-sm text-zinc-300 group-hover:text-zinc-100 transition-colors">{label}</p>
-        {description && <p className="text-xs text-zinc-600 mt-0.5">{description}</p>}
+        {description && <p className="text-xs text-zinc-500 mt-0.5">{description}</p>}
       </div>
       <div
         className={cn(

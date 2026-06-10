@@ -200,13 +200,29 @@ def migrate_legacy_app_data():
     new_history = os.path.join(new_dir, 'history.json')
 
     if not os.path.exists(old_history):
+        # Folder lama ada tapi history.json tidak ada — coba hapus folder jika kosong
+        if os.path.exists(old_dir):
+            try:
+                os.rmdir(old_dir)
+            except OSError:
+                pass
         return
     if os.path.exists(new_history):
+        # Sudah dimitrasi sebelumnya — hapus folder lama jika sekarang kosong
+        if os.path.exists(old_dir):
+            try:
+                shutil.rmtree(old_dir)
+                print(f"[Fetchr] Legacy folder removed: {old_dir}")
+            except Exception as e:
+                print(f"[Fetchr] Could not remove legacy folder: {e}")
         return
 
     try:
         os.makedirs(new_dir, exist_ok=True)
         shutil.copy2(old_history, new_history)
         print(f"[Fetchr] History migrated: {old_history} → {new_history}")
+        # Hapus folder lama setelah migrasi berhasil
+        shutil.rmtree(old_dir)
+        print(f"[Fetchr] Legacy folder removed: {old_dir}")
     except Exception as e:
         print(f"[Fetchr] Migration warning: {e}")

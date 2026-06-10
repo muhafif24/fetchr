@@ -54,7 +54,7 @@ export function VideoInfoCard({
         <div className="grid grid-cols-2 gap-3">
           {/* Format selector */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Format</label>
+            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Format</label>
             <div className="relative">
               <select
                 value={selectedFormat}
@@ -77,7 +77,7 @@ export function VideoInfoCard({
 
           {/* Output folder */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Save to</label>
+            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Save to</label>
             <div className="flex gap-1.5">
               <Input
                 value={outputDir}
@@ -131,7 +131,7 @@ export function VideoInfoCard({
                   <span className="text-xs text-zinc-400">Embed in video</span>
                 </label>
                 {!embedSubs && (
-                  <span className="text-[11px] text-zinc-600">Saved as .srt alongside video</span>
+                  <span className="text-[11px] text-zinc-500">Saved as .srt alongside video</span>
                 )}
               </>
             )}

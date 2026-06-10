@@ -46,6 +46,8 @@ export default function App() {
 
   // Queue
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
+  const queueItemsRef = useRef(queueItems);
+  useEffect(() => { queueItemsRef.current = queueItems; }, [queueItems]);
   const [batchInput, setBatchInput] = useState('');
   const [queueFormat, setQueueFormat] = useState('best');
 
@@ -61,6 +63,11 @@ export default function App() {
 
   // Settings
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const appSettingsRef = useRef(appSettings);
+  useEffect(() => { appSettingsRef.current = appSettings; }, [appSettings]);
+
+  // App version (fetched from Python)
+  const [appVersion, setAppVersion] = useState<string>('');
 
   // Bridge / extension
   const [bridgeToken, setBridgeToken]       = useState<string | null>(null);
@@ -94,6 +101,7 @@ export default function App() {
     checkSystemDependencies();
     loadHistory();
     checkForUpdate();
+    api.get_app_version().then(setAppVersion).catch(() => {});
 
     (window as any).onFfmpegProgress = (percent: number, status: string) => {
       setFfmpegProgress(percent);
@@ -273,6 +281,19 @@ export default function App() {
     setTimeout(() => {
       setActiveDownloads((prev) => { const copy = { ...prev }; delete copy[downloadId]; return copy; });
     }, 4000);
+
+    // Auto-advance queue: start next pending item if slot is available
+    const limit = appSettingsRef.current.concurrentDownloads;
+    // -1 because the finished download is still counted in activeDownloadsRef at this point
+    const active = Math.max(0, getActiveDownloadCount() - 1);
+    if (active < limit) {
+      const nextItem = queueItemsRef.current.find((i) => i.status === 'pending');
+      if (nextItem) {
+        const completedItem = activeDownloadsRef.current[downloadId];
+        const dir = completedItem?.folder || outputDir;
+        await startOneQueueItem(nextItem, queueFormat, dir);
+      }
+    }
   };
 
   const handleDownloadError = (downloadId: string, errorMsg: string) => {
@@ -333,7 +354,6 @@ export default function App() {
       const dId = res.download_id;
       setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: currentVideo.title, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel, formatId: selectedFormat, url: currentUrl, folder: outputDir, isResuming: false } }));
       setCurrentVideo(null); setUrl(''); setSubtitleEnabled(false);
-      setActiveTab('queue');
     } else { alert(`Failed to start download: ${res.error}`); }
   };
 
@@ -369,17 +389,33 @@ export default function App() {
     setBatchInput('');
   };
 
+  // Hitung berapa download yang sedang aktif (dari queue maupun standalone)
+  const getActiveDownloadCount = () =>
+    Object.values(activeDownloadsRef.current).filter(
+      (d) => d.status === 'downloading' || d.status === 'starting'
+    ).length;
+
+  // Mulai satu queue item — dipakai oleh handleDownloadQueue dan auto-advance
+  const startOneQueueItem = async (item: QueueItem, format: string, dir: string) => {
+    if (!api) return;
+    const res = await api.start_download(item.url, format, dir);
+    if (res.success && res.download_id) {
+      const dId = res.download_id;
+      setQueueItems((prev) => prev.map((q) => q.id === item.id ? { ...q, status: 'downloading', downloadId: dId } : q));
+      setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: item.url, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel: format, formatId: format, url: item.url, folder: dir, isResuming: false } }));
+    } else {
+      setQueueItems((prev) => prev.map((q) => q.id === item.id ? { ...q, status: 'error', error: res.error || 'Failed.' } : q));
+    }
+  };
+
   const handleDownloadQueue = async () => {
     if (!api) return;
-    for (const item of queueItems.filter((i) => i.status === 'pending')) {
-      const res = await api.start_download(item.url, queueFormat, outputDir);
-      if (res.success && res.download_id) {
-        const dId = res.download_id;
-        setQueueItems((prev) => prev.map((q) => q.id === item.id ? { ...q, status: 'downloading', downloadId: dId } : q));
-        setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: item.url, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel: queueFormat, formatId: queueFormat, url: item.url, folder: outputDir, isResuming: false } }));
-      } else {
-        setQueueItems((prev) => prev.map((q) => q.id === item.id ? { ...q, status: 'error', error: res.error || 'Failed.' } : q));
-      }
+    const limit = appSettingsRef.current.concurrentDownloads;
+    const active = getActiveDownloadCount();
+    const slots = Math.max(0, limit - active);
+    const toStart = queueItems.filter((i) => i.status === 'pending').slice(0, slots);
+    for (const item of toStart) {
+      await startOneQueueItem(item, queueFormat, outputDir);
     }
   };
 
@@ -443,6 +479,7 @@ export default function App() {
         ffmpegSource={ffmpegStatus.source}
         jsReady={jsStatus.available}
         jsName={jsStatus.name}
+        appVersion={appVersion}
       />
 
       {/* Main */}
@@ -450,11 +487,7 @@ export default function App() {
 
         {/* Top bar */}
         <header className="h-12 shrink-0 flex items-center justify-between px-5 border-b border-zinc-800/50 bg-[#09090b]">
-          <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-            <span className="text-zinc-600">Fetchr</span>
-            <span className="text-zinc-700">/</span>
-            <span className="text-zinc-300 font-medium">{PAGE_TITLE[activeTab]}</span>
-          </div>
+          <span className="text-sm font-semibold text-zinc-100">{PAGE_TITLE[activeTab]}</span>
 
           {/* Update banner */}
           {updateInfo && !updateDismissed ? (
@@ -473,7 +506,7 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <span className="text-[11px] text-zinc-700 select-none">
+            <span className="text-[11px] text-zinc-500 select-none">
               {activeTab === 'download' && 'Press Enter to analyze'}
               {activeTab === 'queue'    && `${queueItems.filter(i => i.status === 'pending').length} pending`}
               {activeTab === 'history'  && `${history.length} download${history.length !== 1 ? 's' : ''}`}
@@ -533,29 +566,19 @@ export default function App() {
                     )}
                   </div>
 
+                  {isPlaylistUrl(url) && !playlistError && (
+                    <div className="flex items-center gap-1.5 text-xs text-violet-400">
+                      <ListVideo className="h-3.5 w-3.5 shrink-0" />
+                      <span>Playlist detected — click <strong>Load Playlist</strong> to pick videos</span>
+                    </div>
+                  )}
+
                   {(playlistError || analysisError) && (
                     <Alert variant="destructive" className="bg-red-950/20 border-red-900/30 text-red-400 py-2">
                       <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                       <AlertDescription className="text-xs ml-2">{playlistError || analysisError}</AlertDescription>
                     </Alert>
                   )}
-                </div>
-
-                {/* Save to folder — selalu visible */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-600 shrink-0">Save to</span>
-                  <Input
-                    value={outputDir}
-                    readOnly
-                    className="bg-zinc-900 border-zinc-800 text-zinc-500 text-xs h-8 min-w-0"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={handleBrowseFolder}
-                    className="h-8 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-xs shrink-0"
-                  >
-                    Browse
-                  </Button>
                 </div>
 
                 {/* Video info card */}
@@ -583,8 +606,8 @@ export default function App() {
                       <img src="/favicon.png" alt="" className="w-8 h-8 opacity-30 rounded-xl" />
                     </div>
                     <div className="text-center space-y-1">
-                      <p className="text-sm font-medium text-zinc-600">Ready to download</p>
-                      <p className="text-xs text-zinc-700">Paste a video or playlist URL above to get started</p>
+                      <p className="text-sm font-medium text-zinc-500">Ready to download</p>
+                      <p className="text-xs text-zinc-500">Paste a video or playlist URL above to get started</p>
                     </div>
                   </div>
                 )}
@@ -610,7 +633,13 @@ export default function App() {
                   onQueueFormatChange={setQueueFormat}
                 />
 
-                {/* Standalone active downloads */}
+                {/* Download tunggal yang dimulai dari tab Download */}
+                {standaloneDownloads.length > 0 && (
+                  <div className="flex items-center gap-3 pt-1">
+                    <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider shrink-0">Single Downloads</span>
+                    <div className="flex-1 h-px bg-zinc-800" />
+                  </div>
+                )}
                 <ActiveDownloads
                   downloads={standaloneDownloads}
                   onCancel={(id) => api?.cancel_download(id)}

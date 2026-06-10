@@ -32,7 +32,7 @@ export function ActiveDownloads({ downloads, onCancel, onPause, onResume, onDism
   if (downloads.length === 0) return null;
 
   return (
-    <Card className="bg-[#0f1420]/75 border-white/[0.05] shadow-2xl backdrop-blur-xl">
+    <Card className="bg-zinc-900/50 border-zinc-800/60 shadow-xl">
       <CardHeader className="py-4">
         <CardTitle className="text-sm font-semibold tracking-wider text-zinc-400 uppercase flex items-center gap-2">
           Active Downloads
@@ -146,7 +146,7 @@ export function ActiveDownloads({ downloads, onCancel, onPause, onResume, onDism
                   }`}
                 >
                   {isDone
-                    ? 'Merging with FFmpeg...'
+                    ? 'Download complete'
                     : isError
                     ? 'Download failed'
                     : item.status === 'pausing'

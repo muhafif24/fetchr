@@ -8,6 +8,7 @@ const NAV: { id: Tab; label: string; icon: React.ComponentType<{ className?: str
   { id: 'download', label: 'Download', icon: Download },
   { id: 'queue',    label: 'Queue',    icon: ListVideo },
   { id: 'history',  label: 'History',  icon: Clock },
+  { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
   ffmpegSource: string | null;
   jsReady: boolean;
   jsName: string | null;
+  appVersion?: string;
 }
 
 export function Sidebar({
@@ -30,6 +32,7 @@ export function Sidebar({
   ffmpegSource,
   jsReady,
   jsName,
+  appVersion,
 }: Props) {
   const pendingOrActive = queueItems.filter(
     (i) => i.status === 'pending' || i.status === 'downloading'
@@ -42,7 +45,7 @@ export function Sidebar({
         <img src="/favicon.png" alt="Fetchr" className="w-7 h-7 shrink-0 rounded-lg" />
         <div>
           <p className="text-sm font-semibold text-zinc-100 leading-tight">Fetchr</p>
-          <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Downloader</p>
+          <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Downloader</p>
         </div>
       </div>
 
@@ -72,26 +75,18 @@ export function Sidebar({
 
       {/* System Status */}
       <div className="p-3 border-t border-zinc-800/50 space-y-1.5">
-        <p className="text-[10px] font-medium text-zinc-600 uppercase tracking-wider px-1 pb-0.5">
+        <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider px-1 pb-0.5">
           System
         </p>
-        <StatusRow ok={ffmpegReady} label={ffmpegReady ? `FFmpeg · ${ffmpegSource}` : 'FFmpeg not found'} />
-        <StatusRow ok={jsReady}     label={jsReady ? (jsName ?? 'JS engine') : 'JS engine missing'} />
+        <StatusRow ok={ffmpegReady} label={ffmpegReady
+          ? `FFmpeg · ${ffmpegSource === 'appdata' ? 'AppData' : ffmpegSource === 'bundled' ? 'Bundled' : 'System'}`
+          : 'FFmpeg not found'} />
+        <StatusRow ok={jsReady} label={jsReady ? (jsName ?? 'JS engine') : 'JS engine missing'} />
 
         {/* Settings button */}
-        <button
-          onClick={() => onTabChange('settings')}
-          className={cn(
-            'w-full flex items-center gap-2 px-1 py-1 rounded-md text-xs transition-colors mt-1',
-            activeTab === 'settings'
-              ? 'text-zinc-300'
-              : 'text-zinc-600 hover:text-zinc-400'
-          )}
-        >
-          <Settings className="h-3 w-3 shrink-0" />
-          <span>Settings</span>
-          <span className="ml-auto text-zinc-700">v1.3.0</span>
-        </button>
+        {appVersion && (
+          <p className="text-[10px] text-zinc-700 px-1 pt-1 select-none">v{appVersion}</p>
+        )}
       </div>
     </aside>
   );

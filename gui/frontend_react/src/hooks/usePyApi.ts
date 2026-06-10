@@ -83,6 +83,7 @@ export interface PyApiInterface {
     regenerate_bridge_token: () => Promise<{ success: boolean; token: string }>;
     get_bridge_port: () => Promise<number>;
     get_extension_dir: () => Promise<string>;
+    get_app_version: () => Promise<string>;
     get_playlist_info: (url: string) => Promise<{
         success: boolean;
         error?: string;

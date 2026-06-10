@@ -52,7 +52,7 @@ export function FFmpegSetupModal({ phase, progress, error, onDownload, onDismiss
                 <span className="text-xs text-zinc-400">{f}</span>
               </div>
             ))}
-            <p className="text-xs text-zinc-600 mt-3 pt-3 border-t border-zinc-800">
+            <p className="text-xs text-zinc-500 mt-3 pt-3 border-t border-zinc-800">
               Saved to <span className="text-zinc-500 font-mono">%APPDATA%\Fetchr\bin\</span> — not re-downloaded after app updates.
             </p>
           </div>

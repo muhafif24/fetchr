@@ -11,9 +11,9 @@ from yt_dlp.utils import sanitize_filename
 from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, get_settings_path, get_ffmpeg_appdata_dir, get_extension_dir, format_size, format_duration, migrate_legacy_app_data
 from extension_bridge import get_or_create_token, regenerate_token, get_active_port
 from downloader import DownloadManager
+from version import APP_VERSION
 
-APP_VERSION = "1.4.0"
-GITHUB_REPO  = "muhafif24/Fetchr"
+GITHUB_REPO = "muhafif24/Fetchr"
 
 DEFAULT_SETTINGS = {
     "outputDir": os.path.join(os.path.expanduser("~"), "Downloads"),
@@ -418,6 +418,10 @@ class Api:
     def get_extension_dir(self):
         """Return the path to the browser extension folder."""
         return get_extension_dir()
+
+    def get_app_version(self):
+        """Return the current app version string."""
+        return APP_VERSION
 
     def _on_bridge_url(self, url: str):
         """Called by extension_bridge when a URL arrives from the browser extension."""

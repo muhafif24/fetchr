@@ -18,7 +18,7 @@ Fetchr adalah GUI desktop modern untuk yt-dlp — memungkinkan pengguna mendownl
 
 | Aspek | Status |
 |---|---|
-| Versi aktif | **1.4.0** |
+| Versi aktif | **1.4.1** |
 | Stabilitas | Stabil — siap rilis |
 | Dev mode | Berjalan via `FETCHR_DEV=1` + Vite port 5175 |
 
@@ -149,12 +149,15 @@ _(lihat `docs-local/` untuk detail)_
 | 2026-06-10 | HTTP bridge di `127.0.0.1:9099` + Bearer token | Extension perlu cara aman kirim URL ke desktop app; token 32-char hex di AppData |
 | 2026-06-10 | WebView2 dihapus dari installer | Windows 10/11 sudah punya WebView2 pre-installed; file ~1.5 MB tidak perlu di-bundle |
 | 2026-06-10 | Bump versi ke 1.4.0 | Semua fitur [Unreleased] di CHANGELOG sudah implemented dan committed |
+| 2026-06-10 | Buat `version.py` sebagai single source of truth | Sebelumnya versi hardcoded di 3 tempat berbeda (api.py, extension_bridge.py, Sidebar.tsx) |
+| 2026-06-10 | Settings masuk NAV utama Sidebar | Sebelumnya hanya ada sebagai tombol kecil tersembunyi di footer sidebar |
+| 2026-06-10 | Bump versi ke 1.4.1 | Setelah serangkaian UX fix dari hasil audit |
 
 ---
 
 ## Known Issues
 
-- `%APPDATA%\yt-dlp-gui\` (folder lama) tidak dihapus otomatis setelah migrasi
+_(tidak ada saat ini)_
 
 ---
 

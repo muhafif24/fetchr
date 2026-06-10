@@ -4,9 +4,9 @@ import secrets
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from utils import get_app_data_dir
+from version import APP_VERSION
 
-APP_VERSION   = "1.3.0"
-DEFAULT_PORT  = 9099
+DEFAULT_PORT = 9099
 
 _server   = None
 _port     = None
