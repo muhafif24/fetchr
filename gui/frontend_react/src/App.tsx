@@ -162,6 +162,13 @@ export default function App() {
     await api.download_ffmpeg();
   };
 
+  const handleOpenFfmpegSetup = () => {
+    setFfmpegPhase('idle');
+    setFfmpegProgress(0);
+    setFfmpegSetupError(null);
+    setFfmpegSetupDismissed(false);
+  };
+
   const checkForUpdate = async () => {
     if (!api) return;
     try {
@@ -591,6 +598,9 @@ export default function App() {
                 onSave={handleSaveSettings}
                 onBrowseFolder={async () => api ? api.select_folder() : null}
                 onBrowseCookieFile={async () => api ? api.select_file(['Text Files (*.txt)', 'All Files (*.*)']) : null}
+                ffmpegAvailable={ffmpegStatus.available}
+                ffmpegSource={ffmpegStatus.source}
+                onSetupFfmpeg={handleOpenFfmpegSetup}
               />
             )}
 

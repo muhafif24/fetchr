@@ -1,4 +1,4 @@
-import { FolderOpen, FileText, CheckCircle } from 'lucide-react';
+import { FolderOpen, FileText, CheckCircle, Cpu, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -10,6 +10,9 @@ interface Props {
   onSave: (settings: AppSettings) => Promise<void>;
   onBrowseFolder: () => Promise<string | null>;
   onBrowseCookieFile: () => Promise<string | null>;
+  ffmpegAvailable: boolean;
+  ffmpegSource: string | null;
+  onSetupFfmpeg: () => void;
 }
 
 const FORMAT_OPTIONS = [
@@ -35,7 +38,7 @@ const LANG_OPTIONS = [
   { value: 'ar', label: 'Arabic' },
 ];
 
-export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieFile }: Props) {
+export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieFile, ffmpegAvailable, ffmpegSource, onSetupFfmpeg }: Props) {
   const [local, setLocal] = useState<AppSettings>({ ...settings });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -205,6 +208,48 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
             )}
           </div>
         </Field>
+      </Section>
+
+      {/* Dependencies */}
+      <Section title="Dependencies">
+        <div className="px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={cn(
+              'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
+              ffmpegAvailable
+                ? 'bg-emerald-500/10 border border-emerald-500/20'
+                : 'bg-zinc-800 border border-zinc-700'
+            )}>
+              <Cpu className={cn('h-4 w-4', ffmpegAvailable ? 'text-emerald-400' : 'text-zinc-500')} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-zinc-300">FFmpeg</span>
+                {ffmpegAvailable ? (
+                  <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-800/30 px-1.5 py-0.5 rounded">
+                    <CheckCircle className="h-2.5 w-2.5" /> Installed
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[10px] font-medium text-zinc-500 bg-zinc-800/60 border border-zinc-700/40 px-1.5 py-0.5 rounded">
+                    <AlertCircle className="h-2.5 w-2.5" /> Not found
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-zinc-600 mt-0.5 truncate">
+                {ffmpegAvailable
+                  ? (ffmpegSource === 'appdata' ? '%APPDATA%\\Fetchr\\bin\\' : ffmpegSource === 'bundled' ? 'Bundled' : 'System PATH')
+                  : 'Required for merging, audio extraction, and subtitles'}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            onClick={onSetupFfmpeg}
+            className="h-8 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs shrink-0"
+          >
+            {ffmpegAvailable ? 'Re-install' : 'Install FFmpeg'}
+          </Button>
+        </div>
       </Section>
 
       {/* Save button */}
