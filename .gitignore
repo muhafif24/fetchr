@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.tox/
+
+# Build output
+build/
+dist/
+*.spec
+
+# Frontend
+gui/frontend_react/node_modules/
+gui/frontend_react/dist/
+gui/frontend_react/screenshots/
+
+# Dev tools
+gui/frontend_react/screenshot*.mjs
+
+# Binaries (download separately)
+gui/bin/ffmpeg.exe
+gui/bin/ffprobe.exe
+gui/bin/qjs.exe
+gui/bin/MicrosoftEdgeWebview2Setup.exe
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+*.code-workspace
+
+# Env
+.env
+.env.local
+*.conf
+cookies
+*cookies.txt
+
+# Logs
+*.log
+
+# Local docs (tidak di-push)
+docs-local/
