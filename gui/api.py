@@ -12,7 +12,7 @@ from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, get_settings
 from extension_bridge import get_or_create_token, regenerate_token, get_active_port
 from downloader import DownloadManager
 
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.4.0"
 GITHUB_REPO  = "muhafif24/Fetchr"
 
 DEFAULT_SETTINGS = {

@@ -1,6 +1,6 @@
 ; Inno Setup Script — Fetchr Installer
 #define MyAppName "Fetchr"
-#define MyAppVersion "1.3.0"
+#define MyAppVersion "1.4.0"
 #define MyAppPublisher "muhafif24"
 #define MyAppURL "https://github.com/muhafif24/Fetchr"
 #define MyAppExeName "yt-dlp.exe"
@@ -21,6 +21,7 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 SetupIconFile=..\fetchr.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
 PrivilegesRequired=admin
 
 [Languages]
