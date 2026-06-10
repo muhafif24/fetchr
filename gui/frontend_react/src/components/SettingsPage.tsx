@@ -1,4 +1,4 @@
-import { FolderOpen, FileText, CheckCircle, Cpu, AlertCircle } from 'lucide-react';
+import { FolderOpen, FileText, CheckCircle, Cpu, AlertCircle, Puzzle, Copy, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -13,6 +13,11 @@ interface Props {
   ffmpegAvailable: boolean;
   ffmpegSource: string | null;
   onSetupFfmpeg: () => void;
+  bridgeToken: string | null;
+  bridgePort: number;
+  extensionDir: string;
+  onRegenerateToken: () => void;
+  onOpenExtensionFolder: () => void;
 }
 
 const FORMAT_OPTIONS = [
@@ -38,10 +43,12 @@ const LANG_OPTIONS = [
   { value: 'ar', label: 'Arabic' },
 ];
 
-export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieFile, ffmpegAvailable, ffmpegSource, onSetupFfmpeg }: Props) {
+export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieFile, ffmpegAvailable, ffmpegSource, onSetupFfmpeg, bridgeToken, bridgePort, extensionDir, onRegenerateToken, onOpenExtensionFolder }: Props) {
   const [local, setLocal] = useState<AppSettings>({ ...settings });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [tokenCopied, setTokenCopied] = useState(false);
+  const [extGuideTab, setExtGuideTab] = useState<'chromium' | 'firefox'>('chromium');
 
   const update = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setLocal((prev) => ({ ...prev, [key]: value }));
@@ -64,6 +71,13 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
   const handleBrowseFolder = async () => {
     const path = await onBrowseFolder();
     if (path) update('outputDir', path);
+  };
+
+  const handleCopyToken = () => {
+    if (!bridgeToken) return;
+    navigator.clipboard.writeText(bridgeToken);
+    setTokenCopied(true);
+    setTimeout(() => setTokenCopied(false), 2000);
   };
 
   const handleBrowseCookie = async () => {
@@ -249,6 +263,110 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
           >
             {ffmpegAvailable ? 'Re-install' : 'Install FFmpeg'}
           </Button>
+        </div>
+      </Section>
+
+      {/* Browser Extension */}
+      <Section title="Browser Extension">
+        {/* Token */}
+        <div className="px-4 py-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Puzzle className="h-3.5 w-3.5 text-violet-400 shrink-0" />
+            <span className="text-sm text-zinc-300">Bridge token</span>
+            <span className="text-xs text-zinc-600 ml-auto">Port {bridgePort}</span>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1 font-mono text-xs bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-zinc-400 truncate select-all">
+              {bridgeToken ?? 'Loading...'}
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleCopyToken}
+              disabled={!bridgeToken}
+              title="Copy token"
+              className="h-9 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-xs shrink-0"
+            >
+              {tokenCopied ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onRegenerateToken}
+              title="Generate new token (extension must be reconfigured)"
+              className="h-9 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-xs shrink-0"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <p className="text-xs text-zinc-600">Copy this token and paste it into the Fetchr Companion extension popup.</p>
+        </div>
+
+        {/* Extension folder */}
+        <div className="px-4 py-3 space-y-1.5 border-t border-zinc-800/60">
+          <label className="text-sm text-zinc-300">Extension folder</label>
+          <div className="flex gap-2">
+            <div className="flex-1 text-xs bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-zinc-500 truncate">
+              {extensionDir || 'Loading...'}
+            </div>
+            <Button
+              variant="outline"
+              onClick={onOpenExtensionFolder}
+              disabled={!extensionDir}
+              className="h-9 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-xs shrink-0"
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Install guide */}
+        <div className="px-4 py-3 space-y-3 border-t border-zinc-800/60">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setExtGuideTab('chromium')}
+              className={cn('text-xs px-3 py-1 rounded-md transition-colors', extGuideTab === 'chromium' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300')}
+            >
+              Chrome / Edge / Brave
+            </button>
+            <button
+              onClick={() => setExtGuideTab('firefox')}
+              className={cn('text-xs px-3 py-1 rounded-md transition-colors', extGuideTab === 'firefox' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300')}
+            >
+              Firefox
+            </button>
+          </div>
+
+          {extGuideTab === 'chromium' && (
+            <ol className="space-y-1.5 text-xs text-zinc-400 list-none">
+              {[
+                'Open chrome://extensions (or edge://extensions)',
+                'Enable Developer Mode — toggle in the top-right corner',
+                'Click "Load unpacked"',
+                'Select the extension folder shown above',
+                'Paste the bridge token into the extension popup',
+              ].map((step, i) => (
+                <li key={i} className="flex gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-500 text-[10px] flex items-center justify-center shrink-0 mt-px">{i + 1}</span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {extGuideTab === 'firefox' && (
+            <ol className="space-y-1.5 text-xs text-zinc-400 list-none">
+              {[
+                'Locate fetchr-companion-firefox.xpi in the extension folder',
+                'Open Firefox → drag and drop the .xpi file onto any browser tab',
+                'Click "Add" when Firefox prompts for permission',
+                'Paste the bridge token into the extension popup',
+              ].map((step, i) => (
+                <li key={i} className="flex gap-2.5">
+                  <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-500 text-[10px] flex items-center justify-center shrink-0 mt-px">{i + 1}</span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       </Section>
 

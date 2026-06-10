@@ -8,7 +8,8 @@ import webbrowser
 import webview
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import sanitize_filename
-from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, get_settings_path, get_ffmpeg_appdata_dir, format_size, format_duration, migrate_legacy_app_data
+from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, get_settings_path, get_ffmpeg_appdata_dir, get_extension_dir, format_size, format_duration, migrate_legacy_app_data
+from extension_bridge import get_or_create_token, regenerate_token, get_active_port
 from downloader import DownloadManager
 
 APP_VERSION = "1.3.0"
@@ -399,6 +400,31 @@ class Api:
         """Pause a running download. The .part file is kept on disk so it can be resumed."""
         success = self._downloader.pause_download(download_id)
         return {"success": success}
+
+    # ── Browser Extension Bridge ───────────────────────────────────────────────
+
+    def get_bridge_token(self):
+        """Return the current bridge token for the browser extension."""
+        return get_or_create_token()
+
+    def regenerate_bridge_token(self):
+        """Generate a new bridge token. Extension must be reconfigured with the new token."""
+        return {"success": True, "token": regenerate_token()}
+
+    def get_bridge_port(self):
+        """Return the active bridge port (default 9099)."""
+        return get_active_port() or 9099
+
+    def get_extension_dir(self):
+        """Return the path to the browser extension folder."""
+        return get_extension_dir()
+
+    def _on_bridge_url(self, url: str):
+        """Called by extension_bridge when a URL arrives from the browser extension."""
+        if self._window:
+            self._window.evaluate_js(
+                f"if(window.onReceiveUrl){{window.onReceiveUrl({json.dumps(url)});}}"
+            )
 
     def get_download_history(self):
         """

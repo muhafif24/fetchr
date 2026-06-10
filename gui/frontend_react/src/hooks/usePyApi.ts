@@ -79,6 +79,10 @@ export interface PyApiInterface {
     download_ffmpeg: () => Promise<{ success: boolean; error?: string }>;
     get_settings: () => Promise<AppSettings>;
     save_settings: (settings: AppSettings) => Promise<{ success: boolean; error?: string }>;
+    get_bridge_token: () => Promise<string>;
+    regenerate_bridge_token: () => Promise<{ success: boolean; token: string }>;
+    get_bridge_port: () => Promise<number>;
+    get_extension_dir: () => Promise<string>;
     get_playlist_info: (url: string) => Promise<{
         success: boolean;
         error?: string;

@@ -62,6 +62,11 @@ export default function App() {
   // Settings
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
 
+  // Bridge / extension
+  const [bridgeToken, setBridgeToken]       = useState<string | null>(null);
+  const [bridgePort, setBridgePort]         = useState<number>(9099);
+  const [extensionDir, setExtensionDir]     = useState<string>('');
+
   // System status
   const [ffmpegStatus, setFfmpegStatus] = useState<{ available: boolean; source: string | null }>({
     available: false, source: null,
@@ -106,6 +111,14 @@ export default function App() {
     };
 
     (window as any).updateDownloadProgress = (payload: any) => handleProgressUpdate(payload);
+    (window as any).onReceiveUrl = (receivedUrl: string) => {
+      setUrl(receivedUrl);
+      setActiveTab('download');
+      setCurrentVideo(null);
+      setAnalysisError(null);
+      // Short delay so state flushes before analyze kicks off
+      setTimeout(() => analyzeUrl(receivedUrl), 100);
+    };
     (window as any).onDownloadStarted = (downloadId: string, title: string) => {
       setActiveDownloads((prev) => {
         const item = prev[downloadId];
@@ -120,6 +133,13 @@ export default function App() {
       handleDownloadError(downloadId, errorMsg);
   }, [isReady, api]);
 
+  // Load bridge info lazily when Settings tab opens
+  useEffect(() => {
+    if (activeTab === 'settings' && api && bridgeToken === null) {
+      loadBridgeInfo();
+    }
+  }, [activeTab, api]);
+
   // ─── Settings ─────────────────────────────────────────────────────────────
 
   const loadSettings = async () => {
@@ -132,6 +152,24 @@ export default function App() {
       if (s.subtitleLang) setSubtitleLang(s.subtitleLang);
       setEmbedSubs(s.embedSubs ?? true);
     } catch (err) { console.error(err); }
+  };
+
+  const loadBridgeInfo = async () => {
+    if (!api) return;
+    const [tok, port, dir] = await Promise.all([
+      api.get_bridge_token(),
+      api.get_bridge_port(),
+      api.get_extension_dir(),
+    ]);
+    setBridgeToken(tok);
+    setBridgePort(port);
+    setExtensionDir(dir);
+  };
+
+  const handleRegenerateToken = async () => {
+    if (!api) return;
+    const res = await api.regenerate_bridge_token();
+    if (res.success) setBridgeToken(res.token);
   };
 
   const handleSaveSettings = async (settings: AppSettings) => {
@@ -259,11 +297,11 @@ export default function App() {
     return false;
   };
 
-  const handleAnalyze = async () => {
-    if (!url.trim() || !api) return;
+  const analyzeUrl = async (targetUrl: string) => {
+    if (!targetUrl.trim() || !api) return;
     setIsAnalyzing(true); setAnalysisError(null); setCurrentVideo(null);
     try {
-      const result = await api.get_video_info(url.trim());
+      const result = await api.get_video_info(targetUrl.trim());
       if (result.success) {
         setCurrentVideo(result as VideoInfo);
         setSelectedFormat('best'); setSubtitleEnabled(false);
@@ -273,6 +311,8 @@ export default function App() {
     } catch (err: any) { setAnalysisError(err.message || 'An error occurred.'); }
     finally { setIsAnalyzing(false); }
   };
+
+  const handleAnalyze = () => analyzeUrl(url);
 
   const handleBrowseFolder = async () => {
     if (!api) return;
@@ -601,6 +641,11 @@ export default function App() {
                 ffmpegAvailable={ffmpegStatus.available}
                 ffmpegSource={ffmpegStatus.source}
                 onSetupFfmpeg={handleOpenFfmpegSetup}
+                bridgeToken={bridgeToken}
+                bridgePort={bridgePort}
+                extensionDir={extensionDir}
+                onRegenerateToken={handleRegenerateToken}
+                onOpenExtensionFolder={() => api?.open_folder(extensionDir)}
               />
             )}
 

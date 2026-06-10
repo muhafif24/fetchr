@@ -12,6 +12,7 @@ import pystray
 from PIL import Image
 from api import Api
 from utils import get_resource_path
+from extension_bridge import start_bridge
 
 
 def _load_tray_image(icon_path):
@@ -74,6 +75,9 @@ def main():
     )
 
     api.set_window(window)
+
+    # Start browser extension HTTP bridge
+    start_bridge(api._on_bridge_url)
 
     # Tutup tombol X → sembunyikan ke tray, bukan keluar
     def on_closing():

@@ -49,3 +49,6 @@ cookies
 
 # Local docs (tidak di-push)
 docs-local/
+
+# Browser extension — distributed via installer, not open source
+extension/
