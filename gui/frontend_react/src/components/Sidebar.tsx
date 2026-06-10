@@ -1,15 +1,14 @@
-import { Download, ListVideo, Clock } from 'lucide-react';
+import { Download, ListVideo, Clock, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { QueueItem } from './QueueSection';
 
-export type Tab = 'download' | 'queue' | 'history';
+export type Tab = 'download' | 'queue' | 'history' | 'settings';
 
 const NAV: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'download', label: 'Download', icon: Download },
   { id: 'queue',    label: 'Queue',    icon: ListVideo },
   { id: 'history',  label: 'History',  icon: Clock },
 ];
-
 
 interface Props {
   activeTab: Tab;
@@ -72,13 +71,27 @@ export function Sidebar({
       </nav>
 
       {/* System Status */}
-      <div className="p-3 pt-3 border-t border-zinc-800/50 space-y-1.5">
+      <div className="p-3 border-t border-zinc-800/50 space-y-1.5">
         <p className="text-[10px] font-medium text-zinc-600 uppercase tracking-wider px-1 pb-0.5">
           System
         </p>
         <StatusRow ok={ffmpegReady} label={ffmpegReady ? `FFmpeg · ${ffmpegSource}` : 'FFmpeg not found'} />
         <StatusRow ok={jsReady}     label={jsReady ? (jsName ?? 'JS engine') : 'JS engine missing'} />
-        <p className="text-[10px] text-zinc-700 px-1 pt-1">v1.2.0</p>
+
+        {/* Settings button */}
+        <button
+          onClick={() => onTabChange('settings')}
+          className={cn(
+            'w-full flex items-center gap-2 px-1 py-1 rounded-md text-xs transition-colors mt-1',
+            activeTab === 'settings'
+              ? 'text-zinc-300'
+              : 'text-zinc-600 hover:text-zinc-400'
+          )}
+        >
+          <Settings className="h-3 w-3 shrink-0" />
+          <span>Settings</span>
+          <span className="ml-auto text-zinc-700">v1.3.0</span>
+        </button>
       </div>
     </aside>
   );

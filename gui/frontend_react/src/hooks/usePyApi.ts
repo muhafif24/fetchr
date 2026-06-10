@@ -1,5 +1,34 @@
 import { useEffect, useState } from 'react';
 
+export interface AppSettings {
+  outputDir: string;
+  defaultFormat: string;
+  subtitleLang: string;
+  embedSubs: boolean;
+  startMinimized: boolean;
+  concurrentDownloads: number;
+  rateLimit: string;
+  proxy: string;
+  cookieFile: string;
+  notify: {
+    onComplete: boolean;
+    onError: boolean;
+  };
+}
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  outputDir: '',
+  defaultFormat: 'best',
+  subtitleLang: 'en',
+  embedSubs: true,
+  startMinimized: false,
+  concurrentDownloads: 3,
+  rateLimit: '',
+  proxy: '',
+  cookieFile: '',
+  notify: { onComplete: true, onError: true },
+};
+
 export interface PyApiInterface {
     check_system_status: () => Promise<{
         ffmpeg: { available: boolean; source: string | null; ffmpeg_path: string | null };
@@ -45,6 +74,9 @@ export interface PyApiInterface {
         error?: string;
     }>;
     open_url: (url: string) => Promise<{ success: boolean; error?: string }>;
+    select_file: (fileTypes?: string[]) => Promise<string | null>;
+    get_settings: () => Promise<AppSettings>;
+    save_settings: (settings: AppSettings) => Promise<{ success: boolean; error?: string }>;
     get_playlist_info: (url: string) => Promise<{
         success: boolean;
         error?: string;

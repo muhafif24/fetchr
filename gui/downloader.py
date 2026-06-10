@@ -13,13 +13,21 @@ except ImportError:
     _PLYER_AVAILABLE = False
 
 class DownloadManager:
-    def __init__(self, window=None):
+    def __init__(self, window=None, max_concurrent=3, notify_prefs=None):
         self._window = window
         self.active_downloads = {}  # Format: {download_id: {thread, status, cancel_flag, ...}}
         self.lock = threading.Lock()
+        self._semaphore = threading.Semaphore(max_concurrent)
+        self._notify_prefs = notify_prefs or {"onComplete": True, "onError": True}
 
     def set_window(self, window):
         self._window = window
+
+    def set_notify_prefs(self, prefs: dict):
+        self._notify_prefs = prefs
+
+    def set_max_concurrent(self, n: int):
+        self._semaphore = threading.Semaphore(max(1, n))
 
     def _notify(self, title: str, message: str, timeout: int = 5):
         if not _PLYER_AVAILABLE:
@@ -95,18 +103,29 @@ class DownloadManager:
             js_code = f"if (window.updateDownloadProgress) {{ window.updateDownloadProgress({json.dumps(payload)}); }}"
             self._window.evaluate_js(js_code)
 
-    def _run_download(self, download_id, url, format_id, output_path, subtitle_lang=None, embed_subs=True):
+    def _run_download(self, download_id, url, format_id, output_path, subtitle_lang=None, embed_subs=True,
+                      rate_limit=None, proxy=None, cookie_file=None):
         """
-        Dijalankan di dalam thread terpisah.
+        Dijalankan di dalam thread terpisah. Acquire semaphore di sini agar
+        thread yang melebihi batas concurrent akan mengantri, bukan ditolak.
         """
+        self._semaphore.acquire()
+
         ffmpeg_info = check_ffmpeg()
         js_info = check_js_runtime()
 
         ydl_opts = {
             'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
             'progress_hooks': [lambda d: self._progress_hook(download_id, d)],
-            'noplaylist': True,  # Abaikan playlist saat pengunduhan video tunggal
+            'noplaylist': True,
         }
+
+        if rate_limit:
+            ydl_opts['ratelimit'] = rate_limit
+        if proxy:
+            ydl_opts['proxy'] = proxy
+        if cookie_file and os.path.exists(cookie_file):
+            ydl_opts['cookiefile'] = cookie_file
         if js_info["available"]:
             ydl_opts['js_runtimes'] = {js_info["runtime_key"]: {'path': js_info["path"]}}
 
@@ -170,16 +189,17 @@ class DownloadManager:
                 js_code = f"if (window.onDownloadComplete) {{ window.onDownloadComplete({json.dumps(download_id)}, {json.dumps(filename)}); }}"
                 self._window.evaluate_js(js_code)
 
-            self._notify("Download Selesai", f'"{title}" berhasil diunduh.')
+            if self._notify_prefs.get("onComplete", True):
+                self._notify("Download Complete", f'"{title}" finished downloading.')
 
         except Exception as e:
             error_msg = str(e)
             if "cancelled" in error_msg.lower():
                 status = "cancelled"
-                friendly_err = "Unduhan dibatalkan oleh pengguna."
+                friendly_err = "Download cancelled by user."
             else:
                 status = "error"
-                friendly_err = f"Gagal mengunduh: {error_msg}"
+                friendly_err = f"Download failed: {error_msg}"
                 traceback.print_exc()
 
             with self.lock:
@@ -191,21 +211,25 @@ class DownloadManager:
                 js_code = f"if (window.onDownloadError) {{ window.onDownloadError({json.dumps(download_id)}, {json.dumps(friendly_err)}); }}"
                 self._window.evaluate_js(js_code)
 
-            if status == "error":
-                self._notify("Download Gagal", f'"{title}": {friendly_err}', timeout=8)
+            if status == "error" and self._notify_prefs.get("onError", True):
+                self._notify("Download Failed", f'"{title}": {friendly_err}', timeout=8)
 
         finally:
+            self._semaphore.release()
             with self.lock:
                 if download_id in self.active_downloads:
                     self.active_downloads[download_id]["running"] = False
 
-    def start_download(self, download_id, url, format_id, output_path, subtitle_lang=None, embed_subs=True):
+    def start_download(self, download_id, url, format_id, output_path, subtitle_lang=None, embed_subs=True,
+                       rate_limit=None, proxy=None, cookie_file=None):
         """
-        Memulai thread unduhan baru.
+        Memulai thread unduhan baru. Thread akan mengantri di semaphore jika
+        jumlah download concurrent sudah mencapai batas.
         """
         thread = threading.Thread(
             target=self._run_download,
-            args=(download_id, url, format_id, output_path, subtitle_lang, embed_subs),
+            args=(download_id, url, format_id, output_path, subtitle_lang, embed_subs,
+                  rate_limit, proxy, cookie_file),
             daemon=True
         )
         

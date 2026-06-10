@@ -9,6 +9,11 @@ All notable changes to Fetchr will be documented here.
 - GitHub Actions auto-update checker — buat PR otomatis setiap yt-dlp rilis versi baru
 - Windows notification saat download selesai dan saat download gagal (via `plyer`)
 - Migrasi otomatis satu kali: history.json dari `%APPDATA%\yt-dlp-gui\` disalin ke `%APPDATA%\Fetchr\`
+- Settings page — tab baru di Sidebar untuk mengatur preferensi download
+  - General: folder default, format default, bahasa subtitle, embed subs otomatis, start minimized
+  - Notifikasi: toggle on/off notifikasi selesai dan gagal
+  - Advanced: concurrent downloads (1–5), rate limit, proxy, cookie file
+- Settings disimpan ke `%APPDATA%\Fetchr\settings.json` dan diterapkan ke runtime tanpa restart
 
 ### Changed
 - yt-dlp dijadikan pip dependency (`yt-dlp>=2026.06.09`), bukan bundled fork

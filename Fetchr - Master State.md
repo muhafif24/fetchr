@@ -93,6 +93,7 @@ Python → JS:   window.evaluate_js("if (window.fn) { window.fn(json.dumps(data)
 - Dark elegant UI (zinc + violet accent)
 - Windows notification saat download selesai / gagal (via `plyer`, graceful fallback jika belum install)
 - Migrasi otomatis history dari `%APPDATA%\yt-dlp-gui\` → `%APPDATA%\Fetchr\`
+- Settings page (tab di Sidebar) — General, Notifikasi, Advanced; disimpan ke `%APPDATA%\Fetchr\settings.json`
 
 ### 🔄 In Progress
 
@@ -127,6 +128,7 @@ Detail implementasi setiap fitur ada di `docs-local/`.
 | 2026-06-10 | Tambah GitHub Actions CI + auto-update checker | CI cek TypeScript & Python syntax tiap push; checker buat PR otomatis tiap yt-dlp rilis versi baru |
 | 2026-06-10 | Fix AppData path `yt-dlp-gui` → `Fetchr` + migration script | Sisa nama lama dari saat project masih fork; migration salin history lama sekali saat app dibuka |
 | 2026-06-10 | Windows notification via `plyer` dengan graceful fallback | Notif muncul di pojok kanan bawah Windows saat download selesai/gagal; app tidak crash jika plyer belum terinstall |
+| 2026-06-10 | Settings page — simpan ke `%APPDATA%\Fetchr\settings.json` | Fondasi untuk semua preferensi user; concurrent semaphore, rate limit, proxy, dan cookie file diterapkan ke ydl_opts tanpa restart |
 
 ---
 
@@ -149,10 +151,9 @@ Detail implementasi setiap fitur ada di `docs-local/`.
 
 Urutan fitur yang disarankan (lihat `docs-local/` untuk detail implementasi):
 
-1. **Settings page** — fondasi untuk fitur lain, simpan ke `%APPDATA%\Fetchr\settings.json` (~2-3 hari)
-2. **FFmpeg on-demand** — kurangi ukuran installer dari 444MB ke ~80MB; perlu update `check_ffmpeg()` agar cek `%APPDATA%\Fetchr\bin\` (~1-2 hari)
-3. **Resume download** — bedakan Cancel vs Pause, tombol Pause di ActiveDownloads (~1 hari)
-4. **Browser extension** — Python HTTP bridge di port 9099 + Chrome/Edge extension (~2-3 hari)
+1. **FFmpeg on-demand** — kurangi ukuran installer dari 444MB ke ~80MB; perlu update `check_ffmpeg()` agar cek `%APPDATA%\Fetchr\bin\` (~1-2 hari)
+2. **Resume download** — bedakan Cancel vs Pause, tombol Pause di ActiveDownloads (~1 hari)
+3. **Browser extension** — Python HTTP bridge di port 9099 + Chrome/Edge extension (~2-3 hari)
 
 ---
 

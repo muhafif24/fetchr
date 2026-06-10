@@ -6,17 +6,37 @@ import webbrowser
 import webview
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import sanitize_filename
-from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, format_size, format_duration, migrate_legacy_app_data
+from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, get_settings_path, format_size, format_duration, migrate_legacy_app_data
 from downloader import DownloadManager
 
 APP_VERSION = "1.3.0"
 GITHUB_REPO  = "muhafif24/Fetchr"
 
+DEFAULT_SETTINGS = {
+    "outputDir": os.path.join(os.path.expanduser("~"), "Downloads"),
+    "defaultFormat": "best",
+    "subtitleLang": "en",
+    "embedSubs": True,
+    "startMinimized": False,
+    "concurrentDownloads": 3,
+    "rateLimit": "",
+    "proxy": "",
+    "cookieFile": "",
+    "notify": {
+        "onComplete": True,
+        "onError": True,
+    },
+}
+
 class Api:
     def __init__(self):
         self._window = None
-        self._downloader = DownloadManager()
         migrate_legacy_app_data()
+        self._settings = self._load_settings()
+        self._downloader = DownloadManager(
+            max_concurrent=self._settings.get("concurrentDownloads", DEFAULT_SETTINGS["concurrentDownloads"]),
+            notify_prefs=self._settings.get("notify", DEFAULT_SETTINGS["notify"]),
+        )
         self._history_file = os.path.join(get_app_data_dir(), "history.json")
         self._ensure_history_exists()
 
@@ -29,7 +49,45 @@ class Api:
             with open(self._history_file, 'w', encoding='utf-8') as f:
                 json.dump([], f)
 
+    def _load_settings(self):
+        try:
+            with open(get_settings_path(), 'r', encoding='utf-8') as f:
+                saved = json.load(f)
+            # Deep merge: defaults di-override oleh nilai yang tersimpan
+            merged = dict(DEFAULT_SETTINGS)
+            merged.update(saved)
+            merged["notify"] = {**DEFAULT_SETTINGS["notify"], **saved.get("notify", {})}
+            return merged
+        except Exception:
+            return dict(DEFAULT_SETTINGS)
+
     # API Methods exposed to JavaScript:
+
+    def get_settings(self):
+        """Mengembalikan settings saat ini ke frontend."""
+        return self._settings
+
+    def save_settings(self, settings):
+        """
+        Menyimpan settings dari frontend ke disk dan menerapkannya ke runtime.
+        settings: dict yang dikirim dari JS.
+        """
+        try:
+            # Merge ke defaults agar tidak ada key yang hilang
+            merged = dict(DEFAULT_SETTINGS)
+            merged.update(settings)
+            merged["notify"] = {**DEFAULT_SETTINGS["notify"], **settings.get("notify", {})}
+            self._settings = merged
+
+            with open(get_settings_path(), 'w', encoding='utf-8') as f:
+                json.dump(merged, f, indent=2, ensure_ascii=False)
+
+            # Terapkan perubahan ke downloader tanpa restart
+            self._downloader.set_max_concurrent(merged.get("concurrentDownloads", DEFAULT_SETTINGS["concurrentDownloads"]))
+            self._downloader.set_notify_prefs(merged.get("notify", DEFAULT_SETTINGS["notify"]))
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def check_system_status(self):
         """
@@ -68,12 +126,24 @@ class Api:
             return result[0]
         return None
 
+    def select_file(self, file_types=None):
+        """Membuka dialog pemilihan file (untuk cookie file, dll.)."""
+        if not self._window:
+            return None
+        result = self._window.create_file_dialog(
+            webview.OPEN_DIALOG,
+            file_types=file_types or ('All Files (*.*)',),
+        )
+        if result and len(result) > 0:
+            return result[0]
+        return None
+
     def get_playlist_info(self, url):
         """
         Mengekstrak daftar video dari URL playlist (flat extraction — cepat, tanpa download).
         """
         if not url:
-            return {"success": False, "error": "URL tidak boleh kosong."}
+            return {"success": False, "error": "URL cannot be empty."}
 
         js_info = check_js_runtime()
         ffmpeg_info = check_ffmpeg()
@@ -93,7 +163,7 @@ class Api:
                 info = ydl.extract_info(url, download=False)
 
             if info.get('_type') != 'playlist':
-                return {"success": False, "error": "URL bukan playlist yang valid."}
+                return {"success": False, "error": "URL is not a valid playlist."}
 
             entries = [e for e in (info.get('entries') or []) if e]
             return {
@@ -120,7 +190,7 @@ class Api:
         Mengekstrak metadata video (judul, thumbnail, format yang tersedia).
         """
         if not url:
-            return {"success": False, "error": "URL tidak boleh kosong."}
+            return {"success": False, "error": "URL cannot be empty."}
 
         # Cek status dependensi
         ffmpeg_info = check_ffmpeg()
@@ -144,17 +214,16 @@ class Api:
                 # Masukkan opsi default "Terbaik (Otomatis)"
                 formats.append({
                     "id": "best",
-                    "label": "Kualitas Terbaik (Otomatis)",
+                    "label": "Best Quality (Auto)",
                     "ext": "mp4 / mkv",
-                    "size": "Otomatis"
+                    "size": "Auto"
                 })
 
-                # Opsi audio saja
                 formats.append({
                     "id": "bestaudio",
-                    "label": "Hanya Audio (MP3 192kbps)",
+                    "label": "Audio Only (MP3 192kbps)",
                     "ext": "mp3",
-                    "size": "Bervariasi"
+                    "size": "Varies"
                 })
 
                 # Parsing format video yang tersedia dari yt-dlp
@@ -217,7 +286,7 @@ class Api:
 
                 return {
                     "success": True,
-                    "title": info.get("title", "Video Tanpa Judul"),
+                    "title": info.get("title", "Untitled Video"),
                     "thumbnail": info.get("thumbnail", ""),
                     "duration": format_duration(info.get("duration", 0)),
                     "uploader": info.get("uploader", "Unknown"),
@@ -232,23 +301,28 @@ class Api:
         Memulai proses pengunduhan.
         """
         if not url or not output_path:
-            return {"success": False, "error": "Parameter tidak lengkap."}
+            return {"success": False, "error": "Missing required parameters."}
 
         if not os.path.exists(output_path):
             try:
                 os.makedirs(output_path)
             except Exception as e:
-                return {"success": False, "error": f"Gagal membuat folder output: {str(e)}"}
+                return {"success": False, "error": f"Failed to create output folder: {str(e)}"}
 
         download_id = str(uuid.uuid4())
 
-        # Mulai pengunduhan asinkron
-        success = self._downloader.start_download(download_id, url, format_id, output_path, subtitle_lang, embed_subs)
+        # Mulai pengunduhan asinkron, sertakan opsi jaringan dari settings
+        success = self._downloader.start_download(
+            download_id, url, format_id, output_path, subtitle_lang, embed_subs,
+            rate_limit=self._settings.get("rateLimit", "") or None,
+            proxy=self._settings.get("proxy", "") or None,
+            cookie_file=self._settings.get("cookieFile", "") or None,
+        )
         
         if success:
             return {"success": True, "download_id": download_id}
         else:
-            return {"success": False, "error": "Gagal memulai tugas pengunduhan."}
+            return {"success": False, "error": "Failed to start download task."}
 
     def cancel_download(self, download_id):
         """
@@ -296,7 +370,7 @@ class Api:
                 
             return True
         except Exception as e:
-            print(f"Gagal menyimpan riwayat: {e}")
+            print(f"Failed to save history: {e}")
             return False
 
     def delete_history_item(self, index, delete_file):
@@ -307,7 +381,7 @@ class Api:
         try:
             history = self.get_download_history()
             if index < 0 or index >= len(history):
-                return {"success": False, "error": "Indeks tidak valid."}
+                return {"success": False, "error": "Invalid index."}
                 
             item = history[index]
             
@@ -338,7 +412,7 @@ class Api:
                             os.remove(file_path)
                         except Exception as e:
                             # Catat saja jika gagal menghapus file (misal karena terkunci)
-                            print(f"Gagal menghapus file fisik: {e}")
+                            print(f"Failed to delete file: {e}")
                             
             # Hapus dari list riwayat
             history.pop(index)
@@ -356,7 +430,7 @@ class Api:
         Membuka folder penyimpanan di File Explorer Windows.
         """
         if not folder_path or not os.path.exists(folder_path):
-            return {"success": False, "error": "Folder tidak ditemukan."}
+            return {"success": False, "error": "Folder not found."}
         
         try:
             os.startfile(os.path.normpath(folder_path))
@@ -369,7 +443,7 @@ class Api:
         Memutar video hasil unduhan menggunakan pemutar media default Windows.
         """
         if not folder_path or not filename:
-            return {"success": False, "error": "Parameter tidak lengkap."}
+            return {"success": False, "error": "Missing required parameters."}
             
         # Pengecekan path asli langsung
         file_path = os.path.join(folder_path, filename)
@@ -405,7 +479,7 @@ class Api:
                     break
                     
             if not found:
-                return {"success": False, "error": "File video tidak ditemukan."}
+                return {"success": False, "error": "Video file not found."}
             
         try:
             os.startfile(os.path.normpath(file_path))

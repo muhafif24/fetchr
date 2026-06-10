@@ -145,6 +145,11 @@ def format_duration(seconds):
     else:
         return f"{minutes}:{secs:02d}"
 
+def get_settings_path():
+    """Mengembalikan path file settings.json di %APPDATA%\\Fetchr\\."""
+    return os.path.join(get_app_data_dir(), 'settings.json')
+
+
 def get_app_data_dir():
     """
     Mendapatkan path direktori AppData lokal pengguna untuk menyimpan data riwayat.

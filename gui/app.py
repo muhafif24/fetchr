@@ -82,6 +82,13 @@ def main():
 
     window.events.closing += on_closing
 
+    # startMinimized: sembunyikan window begitu halaman selesai dimuat
+    if api.get_settings().get("startMinimized", False):
+        def _hide_on_load():
+            window.hide()
+            window.events.loaded -= _hide_on_load
+        window.events.loaded += _hide_on_load
+
     # Siapkan tray icon
     icon_path = get_resource_path("fetchr.ico")
     tray = _create_tray(window, icon_path)

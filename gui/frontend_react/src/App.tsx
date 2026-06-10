@@ -13,6 +13,8 @@ import { QueueSection, type QueueItem } from './components/QueueSection';
 import { HistoryTable, type HistoryItem } from './components/HistoryTable';
 import { PlaylistModal, type PlaylistInfo } from './components/PlaylistModal';
 import { DeleteModal } from './components/DeleteModal';
+import { SettingsPage } from './components/SettingsPage';
+import { DEFAULT_SETTINGS, type AppSettings } from './hooks/usePyApi';
 
 export default function App() {
   const { api, isReady } = usePyApi();
@@ -56,6 +58,9 @@ export default function App() {
   const [deleteTarget, setDeleteTarget] = useState<{ index: number; title: string } | null>(null);
   const [deleteFileAlso, setDeleteFileAlso] = useState(false);
 
+  // Settings
+  const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+
   // System status
   const [ffmpegStatus, setFfmpegStatus] = useState<{ available: boolean; source: string | null }>({
     available: false, source: null,
@@ -72,6 +77,7 @@ export default function App() {
 
   useEffect(() => {
     if (!isReady || !api) return;
+    loadSettings();
     checkSystemDependencies();
     loadHistory();
     checkForUpdate();
@@ -91,6 +97,27 @@ export default function App() {
       handleDownloadError(downloadId, errorMsg);
   }, [isReady, api]);
 
+  // ─── Settings ─────────────────────────────────────────────────────────────
+
+  const loadSettings = async () => {
+    if (!api) return;
+    try {
+      const s = await api.get_settings();
+      setAppSettings(s);
+      if (s.outputDir) setOutputDir(s.outputDir);
+      if (s.defaultFormat) setSelectedFormat(s.defaultFormat);
+      if (s.subtitleLang) setSubtitleLang(s.subtitleLang);
+      setEmbedSubs(s.embedSubs ?? true);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleSaveSettings = async (settings: AppSettings) => {
+    if (!api) return;
+    await api.save_settings(settings);
+    setAppSettings(settings);
+    setOutputDir(settings.outputDir);
+  };
+
   // ─── System ──────────────────────────────────────────────────────────────
 
   const checkSystemDependencies = async () => {
@@ -99,7 +126,8 @@ export default function App() {
       const status = await api.check_system_status();
       setFfmpegStatus({ available: status.ffmpeg.available, source: status.ffmpeg.source });
       setJsStatus({ available: status.js_runtime.available, name: status.js_runtime.name });
-      setOutputDir(status.default_dir);
+      // Hanya pakai default_dir jika settings belum load outputDir
+      if (!appSettings.outputDir) setOutputDir(status.default_dir);
     } catch (err) { console.error(err); }
   };
 
@@ -293,6 +321,7 @@ export default function App() {
     download: 'Download',
     queue:    'Queue',
     history:  'History',
+    settings: 'Settings',
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -344,6 +373,7 @@ export default function App() {
               {activeTab === 'download' && 'Press Enter to analyze'}
               {activeTab === 'queue'    && `${queueItems.filter(i => i.status === 'pending').length} pending`}
               {activeTab === 'history'  && `${history.length} download${history.length !== 1 ? 's' : ''}`}
+              {activeTab === 'settings' && 'Preferences'}
             </span>
           )}
         </header>
@@ -492,6 +522,16 @@ export default function App() {
                 onPlay={handlePlayVideo}
                 onOpenFolder={handleOpenFolder}
                 onDeleteClick={(index, title) => setDeleteTarget({ index, title })}
+              />
+            )}
+
+            {/* ── SETTINGS TAB ── */}
+            {activeTab === 'settings' && (
+              <SettingsPage
+                settings={appSettings}
+                onSave={handleSaveSettings}
+                onBrowseFolder={async () => api ? api.select_folder() : null}
+                onBrowseCookieFile={async () => api ? api.select_file(['Text Files (*.txt)', 'All Files (*.*)']) : null}
               />
             )}
 
