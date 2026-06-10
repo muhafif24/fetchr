@@ -33,44 +33,41 @@ def get_bundled_bin_dir():
         bin_dir = get_resource_path("gui/bin")
     return bin_dir
 
+def get_ffmpeg_appdata_dir():
+    """Mengembalikan path folder %APPDATA%\\Fetchr\\bin untuk FFmpeg on-demand."""
+    base = os.environ.get('APPDATA', os.path.expanduser('~')) if sys.platform == 'win32' else os.path.expanduser('~')
+    return os.path.join(base, 'Fetchr', 'bin')
+
+
 def check_ffmpeg():
     """
     Memeriksa keberadaan ffmpeg.exe dan ffprobe.exe.
-    Mengecek di:
-    1. Folder 'gui/bin' bawaan aplikasi
-    2. PATH sistem
-    Mengembalikan dict berisi status dan path-nya.
+    Urutan prioritas:
+    1. %APPDATA%\\Fetchr\\bin  (on-demand download)
+    2. gui/bin bundled         (dev / legacy build)
+    3. System PATH
     """
+    # 1. On-demand location
+    appdata_bin = get_ffmpeg_appdata_dir()
+    ffmpeg_appdata = os.path.join(appdata_bin, "ffmpeg.exe")
+    ffprobe_appdata = os.path.join(appdata_bin, "ffprobe.exe")
+    if os.path.exists(ffmpeg_appdata) and os.path.exists(ffprobe_appdata):
+        return {"available": True, "ffmpeg_path": ffmpeg_appdata, "ffprobe_path": ffprobe_appdata, "source": "appdata"}
+
+    # 2. Bundled bin
     bin_dir = get_bundled_bin_dir()
     ffmpeg_internal = os.path.join(bin_dir, "ffmpeg.exe")
     ffprobe_internal = os.path.join(bin_dir, "ffprobe.exe")
-    has_internal = os.path.exists(ffmpeg_internal) and os.path.exists(ffprobe_internal)
+    if os.path.exists(ffmpeg_internal) and os.path.exists(ffprobe_internal):
+        return {"available": True, "ffmpeg_path": ffmpeg_internal, "ffprobe_path": ffprobe_internal, "source": "internal"}
 
+    # 3. System PATH
     ffmpeg_system = shutil.which("ffmpeg")
     ffprobe_system = shutil.which("ffprobe")
-    has_system = ffmpeg_system is not None and ffprobe_system is not None
+    if ffmpeg_system and ffprobe_system:
+        return {"available": True, "ffmpeg_path": ffmpeg_system, "ffprobe_path": ffprobe_system, "source": "system"}
 
-    if has_internal:
-        return {
-            "available": True,
-            "ffmpeg_path": ffmpeg_internal,
-            "ffprobe_path": ffprobe_internal,
-            "source": "internal"
-        }
-    elif has_system:
-        return {
-            "available": True,
-            "ffmpeg_path": ffmpeg_system,
-            "ffprobe_path": ffprobe_system,
-            "source": "system"
-        }
-
-    return {
-        "available": False,
-        "ffmpeg_path": None,
-        "ffprobe_path": None,
-        "source": None
-    }
+    return {"available": False, "ffmpeg_path": None, "ffprobe_path": None, "source": None}
 
 def check_js_runtime():
     """

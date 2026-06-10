@@ -1,12 +1,14 @@
 import os
 import json
 import uuid
+import zipfile
+import threading
 import urllib.request
 import webbrowser
 import webview
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import sanitize_filename
-from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, get_settings_path, format_size, format_duration, migrate_legacy_app_data
+from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, get_settings_path, get_ffmpeg_appdata_dir, format_size, format_duration, migrate_legacy_app_data
 from downloader import DownloadManager
 
 APP_VERSION = "1.3.0"
@@ -137,6 +139,68 @@ class Api:
         if result and len(result) > 0:
             return result[0]
         return None
+
+    def download_ffmpeg(self):
+        """
+        Start FFmpeg on-demand download in a background thread.
+        Progress is pushed to JS via window.onFfmpegProgress(percent, status).
+        Completion is pushed via window.onFfmpegComplete(success, errorOrNull).
+        """
+        if not self._window:
+            return {"success": False, "error": "Window not ready."}
+        thread = threading.Thread(target=self._ffmpeg_download_worker, daemon=True)
+        thread.start()
+        return {"success": True}
+
+    def _ffmpeg_download_worker(self):
+        FFMPEG_URL = (
+            "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/"
+            "ffmpeg-master-latest-win64-gpl.zip"
+        )
+        ffmpeg_dir = get_ffmpeg_appdata_dir()
+        zip_path = os.path.join(ffmpeg_dir, "ffmpeg_setup.zip")
+
+        def push(percent, status="downloading"):
+            if self._window:
+                self._window.evaluate_js(
+                    f"if(window.onFfmpegProgress){{window.onFfmpegProgress({json.dumps(percent)},{json.dumps(status)});}}"
+                )
+
+        def done(success, error=None):
+            if self._window:
+                self._window.evaluate_js(
+                    f"if(window.onFfmpegComplete){{window.onFfmpegComplete({json.dumps(success)},{json.dumps(error)});}}"
+                )
+
+        try:
+            os.makedirs(ffmpeg_dir, exist_ok=True)
+            push(0)
+
+            def reporthook(count, block_size, total_size):
+                if total_size > 0:
+                    push(min(int(count * block_size * 100 / total_size), 95))
+
+            urllib.request.urlretrieve(FFMPEG_URL, zip_path, reporthook)
+            push(96, "extracting")
+
+            with zipfile.ZipFile(zip_path, 'r') as z:
+                for name in z.namelist():
+                    if name.endswith("ffmpeg.exe") or name.endswith("ffprobe.exe"):
+                        data = z.read(name)
+                        dest = os.path.join(ffmpeg_dir, os.path.basename(name))
+                        with open(dest, 'wb') as f:
+                            f.write(data)
+
+            os.remove(zip_path)
+            push(100, "done")
+            done(True)
+        except Exception as e:
+            try:
+                if os.path.exists(zip_path):
+                    os.remove(zip_path)
+            except Exception:
+                pass
+            done(False, str(e))
 
     def get_playlist_info(self, url):
         """

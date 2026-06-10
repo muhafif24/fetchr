@@ -14,6 +14,7 @@ import { HistoryTable, type HistoryItem } from './components/HistoryTable';
 import { PlaylistModal, type PlaylistInfo } from './components/PlaylistModal';
 import { DeleteModal } from './components/DeleteModal';
 import { SettingsPage } from './components/SettingsPage';
+import { FFmpegSetupModal } from './components/FFmpegSetupModal';
 import { DEFAULT_SETTINGS, type AppSettings } from './hooks/usePyApi';
 
 export default function App() {
@@ -69,6 +70,13 @@ export default function App() {
     available: false, name: null,
   });
 
+  // FFmpeg on-demand setup
+  type FfmpegPhase = 'idle' | 'downloading' | 'extracting' | 'done' | 'error';
+  const [ffmpegSetupDismissed, setFfmpegSetupDismissed] = useState(false);
+  const [ffmpegPhase, setFfmpegPhase] = useState<FfmpegPhase>('idle');
+  const [ffmpegProgress, setFfmpegProgress] = useState(0);
+  const [ffmpegSetupError, setFfmpegSetupError] = useState<string | null>(null);
+
   // Update banner
   const [updateInfo, setUpdateInfo] = useState<{ version: string; name: string; url: string } | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
@@ -81,6 +89,21 @@ export default function App() {
     checkSystemDependencies();
     loadHistory();
     checkForUpdate();
+
+    (window as any).onFfmpegProgress = (percent: number, status: string) => {
+      setFfmpegProgress(percent);
+      setFfmpegPhase(status === 'extracting' ? 'extracting' : status === 'done' ? 'done' : 'downloading');
+    };
+    (window as any).onFfmpegComplete = (success: boolean, error: string | null) => {
+      if (success) {
+        setFfmpegPhase('done');
+        setFfmpegProgress(100);
+        checkSystemDependencies();
+      } else {
+        setFfmpegPhase('error');
+        setFfmpegSetupError(error ?? 'Unknown error');
+      }
+    };
 
     (window as any).updateDownloadProgress = (payload: any) => handleProgressUpdate(payload);
     (window as any).onDownloadStarted = (downloadId: string, title: string) => {
@@ -129,6 +152,14 @@ export default function App() {
       // Hanya pakai default_dir jika settings belum load outputDir
       if (!appSettings.outputDir) setOutputDir(status.default_dir);
     } catch (err) { console.error(err); }
+  };
+
+  const handleDownloadFfmpeg = async () => {
+    if (!api) return;
+    setFfmpegPhase('downloading');
+    setFfmpegProgress(0);
+    setFfmpegSetupError(null);
+    await api.download_ffmpeg();
   };
 
   const checkForUpdate = async () => {
@@ -558,6 +589,20 @@ export default function App() {
           onToggleDeleteFile={setDeleteFileAlso}
           onConfirm={handleDeleteItem}
           onCancel={() => { setDeleteTarget(null); setDeleteFileAlso(false); }}
+        />
+      )}
+
+      {/* FFmpeg setup modal — shown when FFmpeg not found and not dismissed */}
+      {!ffmpegStatus.available && !ffmpegSetupDismissed && isReady && (
+        <FFmpegSetupModal
+          phase={ffmpegPhase}
+          progress={ffmpegProgress}
+          error={ffmpegSetupError}
+          onDownload={handleDownloadFfmpeg}
+          onDismiss={() => {
+            if (ffmpegPhase === 'done') checkSystemDependencies();
+            setFfmpegSetupDismissed(true);
+          }}
         />
       )}
     </div>

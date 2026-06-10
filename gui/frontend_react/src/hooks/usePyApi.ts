@@ -75,6 +75,7 @@ export interface PyApiInterface {
     }>;
     open_url: (url: string) => Promise<{ success: boolean; error?: string }>;
     select_file: (fileTypes?: string[]) => Promise<string | null>;
+    download_ffmpeg: () => Promise<{ success: boolean; error?: string }>;
     get_settings: () => Promise<AppSettings>;
     save_settings: (settings: AppSettings) => Promise<{ success: boolean; error?: string }>;
     get_playlist_info: (url: string) => Promise<{
