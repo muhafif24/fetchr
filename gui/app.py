@@ -77,7 +77,7 @@ def main():
     api.set_window(window)
 
     # Start browser extension HTTP bridge
-    start_bridge(api._on_bridge_url)
+    start_bridge(api._on_bridge_url, api._on_bridge_download)
 
     # Tutup tombol X → sembunyikan ke tray, bukan keluar
     def on_closing():

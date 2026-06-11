@@ -4,6 +4,20 @@ All notable changes to Fetchr will be documented here.
 
 ## [Unreleased]
 
+### Added — Browser Extension B-lite (pilih format dari popup)
+- Popup extension kini punya **dropdown format** (Best / 1080p / 720p / 480p / 360p / MP3) + tombol **⬇ Download** yang langsung memulai unduhan di Fetchr tanpa membuka jendela app — muncul & ter-track di tab Queue seperti unduhan biasa
+- Tombol **Open in app to configure** tetap ada untuk mengatur detail (subtitle, folder, format asli)
+- Format terakhir dipilih diingat (`chrome.storage.local`)
+- Endpoint bridge baru `POST /download` (`{url, format}`, format di-whitelist) → `_on_bridge_download` → `window.onReceiveDownload`
+- Settings: tombol **Copy path** di samping Open folder (extension folder)
+- Firefox: distribusi via **XPI signed** (install permanen via drag-drop); panduan Settings diperjelas
+
+### Security — Hardening bridge HTTP (defense-in-depth)
+- **Tolak Origin web** — request dari halaman `http(s)://` otomatis 403; browser selalu melampirkan `Origin` lintas-asal & JS tak bisa memalsukannya → situs jahat ter-block walau punya token
+- **Validasi Host** — hanya `127.0.0.1`/`localhost` diterima → cegah serangan DNS rebinding
+- **Token timing-safe** — `secrets.compare_digest` menggantikan `==` → cegah timing attack
+- `GET /status` ikut dijaga origin/host → situs web tak bisa fingerprint keberadaan Fetchr
+
 ## [1.5.0] — 2026-06-10
 
 ### Changed — UI Redesign (TopBar + Layout Baru)

@@ -430,6 +430,14 @@ class Api:
                 f"if(window.onReceiveUrl){{window.onReceiveUrl({json.dumps(url)});}}"
             )
 
+    def _on_bridge_download(self, url: str, format_id: str):
+        """Called by extension_bridge for POST /download — mulai unduhan langsung
+        dengan format preset. Routing lewat frontend agar muncul & ter-track di UI."""
+        if self._window:
+            self._window.evaluate_js(
+                f"if(window.onReceiveDownload){{window.onReceiveDownload({json.dumps(url)},{json.dumps(format_id)});}}"
+            )
+
     def get_download_history(self):
         """
         Mengambil riwayat unduhan dari history.json.

@@ -160,6 +160,9 @@ _(lihat `docs-local/` untuk detail)_
 | 2026-06-10 | Queue format selector pindah ke bawah textarea | Sebelumnya float di pojok kanan header card — disconnected secara visual flow; sekarang inline dengan tombol Add |
 | 2026-06-11 | History actions selalu terlihat + divider sebelum Delete | Hasil ux-audit: reveal-on-hover menurunkan discoverability; Play/Folder kini permanen, Delete dipisah divider agar tidak salah klik |
 | 2026-06-11 | `ClearHistoryModal` menggantikan `window.confirm()` | Dialog native putih jarring & tak bertema; modal baru menyediakan opsi hapus file disk vs hapus history saja, konsisten dengan DeleteModal |
+| 2026-06-11 | Extension B-lite (pilih format di popup) | Endpoint `/download` baru, route lewat `window.onReceiveDownload` agar reuse infra UI Queue (analisa tidak perlu — yt-dlp terima format selector langsung) |
+| 2026-06-11 | Bridge di-hardening (Origin/Host/timing-safe) | Defense-in-depth: walau sudah loopback+token, tambahan tolak Origin web + anti DNS-rebind + compare_digest |
+| 2026-06-11 | Firefox via XPI signed (web-ext sign, unlisted) | Install permanen; kredensial AMO di `docs-local/credentials-private.md`. Helper `extension/fetch-signed-xpi.py` untuk ambil XPI setelah Mozilla selesai signing |
 
 ---
 

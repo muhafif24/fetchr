@@ -34,6 +34,8 @@ export default function App() {
   const [currentVideo, setCurrentVideo] = useState<VideoInfo | null>(null);
   const [selectedFormat, setSelectedFormat] = useState('best');
   const [outputDir, setOutputDir] = useState('');
+  const outputDirRef = useRef(outputDir);
+  useEffect(() => { outputDirRef.current = outputDir; }, [outputDir]);
   const [subtitleEnabled, setSubtitleEnabled] = useState(false);
   const [subtitleLang, setSubtitleLang] = useState('en');
   const [embedSubs, setEmbedSubs] = useState(true);
@@ -143,6 +145,9 @@ export default function App() {
       // Short delay so state flushes before analyze kicks off
       setTimeout(() => analyzeUrl(receivedUrl), 100);
     };
+    // Extension B-lite: download langsung dgn format preset, tampil di UI Queue
+    (window as any).onReceiveDownload = (dlUrl: string, format: string) =>
+      handleExternalDownload(dlUrl, format);
     (window as any).onDownloadStarted = (downloadId: string, title: string) => {
       setActiveDownloads((prev) => {
         const item = prev[downloadId];
@@ -396,6 +401,25 @@ export default function App() {
       setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: currentVideo.title, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel, formatId: selectedFormat, url: currentUrl, folder: outputDir, isResuming: false } }));
       setCurrentVideo(null); setUrl(''); setSubtitleEnabled(false);
     } else { showToast('error', `Failed to start download: ${res.error}`); }
+  };
+
+  // Download langsung dari browser extension (B-lite) — format preset, tanpa analisa
+  const handleExternalDownload = async (extUrl: string, format: string) => {
+    if (!api) return;
+    const FORMAT_LABELS: Record<string, string> = {
+      best: 'Best Quality (Auto)', bestaudio: 'Audio Only (MP3)',
+      '1080': '1080p Full HD', '720': '720p HD', '480': '480p', '360': '360p',
+    };
+    const dir = outputDirRef.current;
+    const res = await api.start_download(extUrl, format, dir);
+    if (res.success && res.download_id) {
+      const dId = res.download_id;
+      setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: extUrl, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel: FORMAT_LABELS[format] || format, formatId: format, url: extUrl, folder: dir, isResuming: false } }));
+      setActiveTab('queue');
+      showToast('success', 'Download dimulai dari browser extension.');
+    } else {
+      showToast('error', `Extension download gagal: ${res.error}`);
+    }
   };
 
   // ─── Playlist ─────────────────────────────────────────────────────────────

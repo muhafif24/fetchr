@@ -80,19 +80,54 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/status":
+            if not self._guard():
+                return
             self._json(200, {"ok": True, "version": APP_VERSION})
         else:
             self.send_response(404)
             self.end_headers()
 
+    # ── Pemeriksaan keamanan (defense-in-depth) ────────────────────────────────
+
+    def _valid_host(self) -> bool:
+        """Hanya terima Host loopback — cegah serangan DNS rebinding."""
+        host = self.headers.get("Host", "")
+        return host.split(":")[0] in ("127.0.0.1", "localhost")
+
+    def _allowed_origin(self) -> bool:
+        """Tolak request yang berasal dari halaman web (http/https).
+        Browser SELALU melampirkan Origin pada cross-origin fetch dari web page,
+        dan JS tidak bisa memalsukannya — jadi situs jahat otomatis ter-block.
+        Extension mengirim origin chrome-extension://moz-extension:// (atau kosong)."""
+        origin = self.headers.get("Origin", "")
+        if not origin:
+            return True
+        return not (origin.startswith("http://") or origin.startswith("https://"))
+
+    def _guard(self) -> bool:
+        """Gabungan host + origin. Balas 403 & return False jika ditolak."""
+        if not self._valid_host() or not self._allowed_origin():
+            self._json(403, {"ok": False, "error": "Forbidden"})
+            return False
+        return True
+
     def _valid_token(self) -> bool:
         auth = self.headers.get("Authorization", "")
-        return auth.startswith("Bearer ") and auth[7:] == self.server.token
+        if not auth.startswith("Bearer "):
+            return False
+        # Perbandingan timing-safe — cegah token ditebak via timing attack
+        return secrets.compare_digest(auth[7:], self.server.token)
+
+    # Preset format yang diizinkan dari extension (whitelist — cegah injeksi)
+    ALLOWED_FORMATS = {"best", "bestaudio", "1080", "720", "480", "360"}
 
     def do_POST(self):
-        if self.path != "/send-url":
+        if self.path not in ("/send-url", "/download"):
             self.send_response(404)
             self.end_headers()
+            return
+
+        if not self._guard():
             return
 
         if not self._valid_token():
@@ -103,8 +138,21 @@ class _Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
             body   = json.loads(self.rfile.read(length))
             url    = (body.get("url") or "").strip()
-            if url and self.server.on_url:
-                self.server.on_url(url)
+            if not url:
+                self._json(400, {"ok": False, "error": "Missing url"})
+                return
+
+            if self.path == "/send-url":
+                # Lempar URL ke app untuk dianalisa user
+                if self.server.on_url:
+                    self.server.on_url(url)
+            else:  # /download — mulai unduhan langsung dgn format preset
+                fmt = (body.get("format") or "best").strip()
+                if fmt not in self.ALLOWED_FORMATS:
+                    fmt = "best"
+                if self.server.on_download:
+                    self.server.on_download(url, fmt)
+
             self._json(200, {"ok": True})
         except Exception as exc:
             self._json(500, {"ok": False, "error": str(exc)})
@@ -115,8 +163,12 @@ class _Handler(BaseHTTPRequestHandler):
 
 # ── Lifecycle ──────────────────────────────────────────────────────────────────
 
-def start_bridge(on_url_callback) -> int | None:
-    """Start the bridge server. Returns the bound port, or None if all ports are taken."""
+def start_bridge(on_url_callback, on_download_callback=None) -> int | None:
+    """Start the bridge server. Returns the bound port, or None if all ports are taken.
+
+    on_url_callback(url)              — dipanggil untuk POST /send-url
+    on_download_callback(url, format) — dipanggil untuk POST /download (opsional)
+    """
     global _server, _port
 
     token = get_or_create_token()
@@ -124,8 +176,9 @@ def start_bridge(on_url_callback) -> int | None:
     for candidate in range(DEFAULT_PORT, DEFAULT_PORT + 5):
         try:
             srv = HTTPServer(("127.0.0.1", candidate), _Handler)
-            srv.token  = token
-            srv.on_url = on_url_callback
+            srv.token       = token
+            srv.on_url      = on_url_callback
+            srv.on_download = on_download_callback
             threading.Thread(target=srv.serve_forever, daemon=True).start()
             _server, _port = srv, candidate
             return candidate

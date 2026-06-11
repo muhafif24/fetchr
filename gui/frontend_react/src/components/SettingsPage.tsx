@@ -48,6 +48,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tokenCopied, setTokenCopied] = useState(false);
+  const [pathCopied, setPathCopied] = useState(false);
   const [extGuideTab, setExtGuideTab] = useState<'chromium' | 'firefox'>('chromium');
 
   const update = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
@@ -78,6 +79,13 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
     navigator.clipboard.writeText(bridgeToken);
     setTokenCopied(true);
     setTimeout(() => setTokenCopied(false), 2000);
+  };
+
+  const handleCopyPath = () => {
+    if (!extensionDir) return;
+    navigator.clipboard.writeText(extensionDir);
+    setPathCopied(true);
+    setTimeout(() => setPathCopied(false), 2000);
   };
 
   const handleBrowseCookie = async () => {
@@ -310,8 +318,18 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
             </div>
             <Button
               variant="outline"
+              onClick={handleCopyPath}
+              disabled={!extensionDir}
+              title="Copy path"
+              className="h-9 px-3 bg-[#0a0a0a] border-[#242424] hover:bg-[#1a1a1a] text-neutral-400 text-xs shrink-0"
+            >
+              {pathCopied ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+            </Button>
+            <Button
+              variant="outline"
               onClick={onOpenExtensionFolder}
               disabled={!extensionDir}
+              title="Open folder"
               className="h-9 px-3 bg-[#0a0a0a] border-[#242424] hover:bg-[#1a1a1a] text-neutral-400 text-xs shrink-0"
             >
               <FolderOpen className="h-3.5 w-3.5" />
@@ -356,9 +374,9 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
           {extGuideTab === 'firefox' && (
             <ol className="space-y-1.5 text-xs text-neutral-400 list-none">
               {[
-                'Locate fetchr-companion-firefox.xpi in the extension folder',
-                'Open Firefox → drag and drop the .xpi file onto any browser tab',
-                'Click "Add" when Firefox prompts for permission',
+                'Open the extension folder (button above) and find fetchr-companion-firefox.xpi',
+                'In Firefox, drag & drop the .xpi onto any browser tab',
+                'Click "Add" when Firefox asks — it installs permanently (the .xpi is signed)',
                 'Paste the bridge token into the extension popup',
               ].map((step, i) => (
                 <li key={i} className="flex gap-2.5">
