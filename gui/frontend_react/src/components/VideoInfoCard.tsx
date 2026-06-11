@@ -32,20 +32,20 @@ export function VideoInfoCard({
   onFormatChange, onBrowseFolder, onSubtitleToggle, onSubtitleLangChange, onEmbedSubsChange, onStartDownload,
 }: Props) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+    <div className="rounded-lg border border-[#242424] bg-[#141414] overflow-hidden">
       {/* Thumbnail + meta */}
-      <div className="flex gap-4 p-4 border-b border-zinc-800/60">
-        <div className="relative w-36 aspect-video rounded-md overflow-hidden shrink-0 bg-zinc-900">
+      <div className="flex gap-4 p-4 border-b border-[#242424]">
+        <div className="relative w-44 aspect-video rounded-md overflow-hidden shrink-0 bg-neutral-900">
           <img src={video.thumbnail} alt="Thumbnail" className="w-full h-full object-cover" />
           <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1.5 py-px rounded font-medium">
             {video.duration}
           </span>
         </div>
-        <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-          <p className="font-semibold text-zinc-100 text-sm leading-snug line-clamp-2" title={video.title}>
+        <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+          <p className="font-semibold text-neutral-100 text-sm leading-snug line-clamp-2" title={video.title}>
             {video.title}
           </p>
-          <p className="text-xs text-zinc-500">{video.uploader}</p>
+          <p className="text-xs text-neutral-500">{video.uploader}</p>
         </div>
       </div>
 
@@ -54,40 +54,40 @@ export function VideoInfoCard({
         <div className="grid grid-cols-2 gap-3">
           {/* Format selector */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Format</label>
+            <label className="text-xs text-neutral-400">Format</label>
             <div className="relative">
               <select
                 value={selectedFormat}
                 onChange={(e) => onFormatChange(e.target.value)}
                 className={cn(
-                  'w-full h-9 pl-3 pr-8 text-sm bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-md',
-                  'focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer transition-colors'
+                  'w-full h-9 pl-3 pr-8 text-sm bg-[#0a0a0a] border border-[#242424] text-neutral-200 rounded-md',
+                  'focus:outline-none focus:border-rose-500/40 appearance-none cursor-pointer transition-colors'
                 )}
               >
                 {video.formats.map((f) => (
-                  <option key={f.id} value={f.id} className="bg-zinc-900 text-zinc-200">
+                  <option key={f.id} value={f.id} className="bg-[#141414] text-neutral-200">
                     {f.id === 'best' ? 'Best Quality (Auto)' : f.id === 'bestaudio' ? 'Audio Only (MP3)' : f.label}
                     {f.size !== 'Otomatis' && f.size !== 'Bervariasi' ? ` · ${f.size}` : ''}
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500" />
             </div>
           </div>
 
           {/* Output folder */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Save to</label>
+            <label className="text-xs text-neutral-400">Save to</label>
             <div className="flex gap-1.5">
               <Input
                 value={outputDir}
                 readOnly
-                className="bg-zinc-900 border-zinc-800 text-zinc-400 text-xs h-9 min-w-0"
+                className="bg-[#0a0a0a] border-[#242424] text-neutral-400 text-xs h-9 min-w-0 focus-visible:ring-rose-500/30"
               />
               <Button
                 variant="outline"
                 onClick={onBrowseFolder}
-                className="h-9 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-xs shrink-0"
+                className="h-9 px-3 bg-[#0a0a0a] border-[#242424] hover:bg-[#1a1a1a] text-neutral-400 text-xs shrink-0"
               >
                 Browse
               </Button>
@@ -103,9 +103,9 @@ export function VideoInfoCard({
                 type="checkbox"
                 checked={subtitleEnabled}
                 onChange={(e) => onSubtitleToggle(e.target.checked)}
-                className="h-3.5 w-3.5 rounded accent-violet-600 cursor-pointer"
+                className="h-3.5 w-3.5 rounded accent-rose-500 cursor-pointer"
               />
-              <span className="text-xs text-zinc-400">Download subtitles</span>
+              <span className="text-xs text-neutral-400">Download subtitles</span>
             </label>
             {subtitleEnabled && (
               <>
@@ -113,25 +113,25 @@ export function VideoInfoCard({
                   <select
                     value={subtitleLang}
                     onChange={(e) => onSubtitleLangChange(e.target.value)}
-                    className="h-7 pl-2 pr-6 text-xs bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-md focus:outline-none appearance-none cursor-pointer"
+                    className="h-7 pl-2 pr-6 text-xs bg-[#0a0a0a] border border-[#242424] text-neutral-300 rounded-md focus:outline-none appearance-none cursor-pointer"
                   >
                     {video.subtitles.map((s) => (
-                      <option key={s.code} value={s.code} className="bg-zinc-900">{s.name}</option>
+                      <option key={s.code} value={s.code} className="bg-[#141414]">{s.name}</option>
                     ))}
                   </select>
-                  <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-500" />
+                  <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-neutral-500" />
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={embedSubs}
                     onChange={(e) => onEmbedSubsChange(e.target.checked)}
-                    className="h-3.5 w-3.5 rounded accent-violet-600 cursor-pointer"
+                    className="h-3.5 w-3.5 rounded accent-rose-500 cursor-pointer"
                   />
-                  <span className="text-xs text-zinc-400">Embed in video</span>
+                  <span className="text-xs text-neutral-400">Embed in video</span>
                 </label>
                 {!embedSubs && (
-                  <span className="text-[11px] text-zinc-500">Saved as .srt alongside video</span>
+                  <span className="text-[11px] text-neutral-500">Saved as .srt alongside video</span>
                 )}
               </>
             )}
@@ -141,9 +141,9 @@ export function VideoInfoCard({
         {/* Download button */}
         <Button
           onClick={onStartDownload}
-          className="w-full h-9 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium"
+          className="w-full h-10 bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium"
         >
-          <Download className="mr-2 h-3.5 w-3.5" />
+          <Download className="mr-2 h-4 w-4" />
           Start Download
         </Button>
       </div>

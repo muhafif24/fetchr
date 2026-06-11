@@ -95,12 +95,13 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
             <Input
               value={local.outputDir}
               readOnly
-              className="bg-zinc-900 border-zinc-800 text-zinc-400 text-xs h-8 min-w-0"
+              placeholder="Not configured — click Browse to set"
+              className="bg-[#0a0a0a] border-[#242424] text-neutral-400 placeholder:text-neutral-600 text-xs h-8 min-w-0 focus-visible:ring-rose-500/30"
             />
             <Button
               variant="outline"
               onClick={handleBrowseFolder}
-              className="h-8 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-xs shrink-0"
+              className="h-8 px-3 bg-[#0a0a0a] border-[#242424] hover:bg-[#1a1a1a] text-neutral-400 text-xs shrink-0"
             >
               <FolderOpen className="h-3.5 w-3.5" />
             </Button>
@@ -111,10 +112,10 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
           <select
             value={local.defaultFormat}
             onChange={(e) => update('defaultFormat', e.target.value)}
-            className="w-full h-8 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs px-3 focus:outline-none focus:ring-1 focus:ring-violet-500/50"
+            className="w-full h-8 rounded-md bg-[#0a0a0a] border border-[#242424] text-neutral-300 text-xs px-3 focus:outline-none focus:ring-1 focus:ring-rose-500/40"
           >
             {FORMAT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value} className="bg-[#141414]">{o.label}</option>
             ))}
           </select>
         </Field>
@@ -123,10 +124,10 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
           <select
             value={local.subtitleLang}
             onChange={(e) => update('subtitleLang', e.target.value)}
-            className="w-full h-8 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs px-3 focus:outline-none focus:ring-1 focus:ring-violet-500/50"
+            className="w-full h-8 rounded-md bg-[#0a0a0a] border border-[#242424] text-neutral-300 text-xs px-3 focus:outline-none focus:ring-1 focus:ring-rose-500/40"
           >
             {LANG_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value} className="bg-[#141414]">{o.label}</option>
             ))}
           </select>
         </Field>
@@ -170,9 +171,9 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
               max={5}
               value={local.concurrentDownloads}
               onChange={(e) => update('concurrentDownloads', Number(e.target.value))}
-              className="flex-1 accent-violet-500"
+              className="flex-1 accent-rose-500"
             />
-            <span className="text-sm font-semibold text-zinc-300 w-4 text-center tabular-nums">
+            <span className="text-sm font-semibold text-neutral-300 w-4 text-center tabular-nums">
               {local.concurrentDownloads}
             </span>
           </div>
@@ -183,7 +184,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
             value={local.rateLimit}
             onChange={(e) => update('rateLimit', e.target.value)}
             placeholder="5M"
-            className="h-8 bg-zinc-900 border-zinc-800 text-zinc-300 text-xs"
+            className="h-8 bg-[#0a0a0a] border-[#242424] text-neutral-300 text-xs focus-visible:ring-rose-500/30"
           />
         </Field>
 
@@ -192,7 +193,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
             value={local.proxy}
             onChange={(e) => update('proxy', e.target.value)}
             placeholder="http://proxy:port"
-            className="h-8 bg-zinc-900 border-zinc-800 text-zinc-300 text-xs"
+            className="h-8 bg-[#0a0a0a] border-[#242424] text-neutral-300 text-xs focus-visible:ring-rose-500/30"
           />
         </Field>
 
@@ -202,12 +203,12 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
               value={local.cookieFile}
               readOnly
               placeholder="Not selected"
-              className="bg-zinc-900 border-zinc-800 text-zinc-400 text-xs h-8 min-w-0"
+              className="bg-[#0a0a0a] border-[#242424] text-neutral-400 text-xs h-8 min-w-0"
             />
             <Button
               variant="outline"
               onClick={handleBrowseCookie}
-              className="h-8 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-xs shrink-0"
+              className="h-8 px-3 bg-[#0a0a0a] border-[#242424] hover:bg-[#1a1a1a] text-neutral-400 text-xs shrink-0"
             >
               <FileText className="h-3.5 w-3.5" />
             </Button>
@@ -215,7 +216,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
               <Button
                 variant="outline"
                 onClick={() => update('cookieFile', '')}
-                className="h-8 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-500 text-xs shrink-0"
+                className="h-8 px-3 bg-[#0a0a0a] border-[#242424] hover:bg-[#1a1a1a] text-neutral-500 text-xs shrink-0"
               >
                 Clear
               </Button>
@@ -232,24 +233,24 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
               'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
               ffmpegAvailable
                 ? 'bg-emerald-500/10 border border-emerald-500/20'
-                : 'bg-zinc-800 border border-zinc-700'
+                : 'bg-[#1a1a1a] border border-[#242424]'
             )}>
-              <Cpu className={cn('h-4 w-4', ffmpegAvailable ? 'text-emerald-400' : 'text-zinc-500')} />
+              <Cpu className={cn('h-4 w-4', ffmpegAvailable ? 'text-emerald-400' : 'text-neutral-500')} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-zinc-300">FFmpeg</span>
+                <span className="text-sm text-neutral-300">FFmpeg</span>
                 {ffmpegAvailable ? (
                   <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-800/30 px-1.5 py-0.5 rounded">
                     <CheckCircle className="h-2.5 w-2.5" /> Installed
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[10px] font-medium text-zinc-500 bg-zinc-800/60 border border-zinc-700/40 px-1.5 py-0.5 rounded">
+                  <span className="flex items-center gap-1 text-[10px] font-medium text-neutral-500 bg-[#1a1a1a] border border-[#242424] px-1.5 py-0.5 rounded">
                     <AlertCircle className="h-2.5 w-2.5" /> Not found
                   </span>
                 )}
               </div>
-              <p className="text-xs text-zinc-500 mt-0.5 truncate">
+              <p className="text-xs text-neutral-500 mt-0.5 truncate">
                 {ffmpegAvailable
                   ? (ffmpegSource === 'appdata' ? '%APPDATA%\\Fetchr\\bin\\' : ffmpegSource === 'bundled' ? 'Bundled' : 'System PATH')
                   : 'Required for merging, audio extraction, and subtitles'}
@@ -259,7 +260,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
           <Button
             variant="outline"
             onClick={onSetupFfmpeg}
-            className="h-8 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs shrink-0"
+            className="h-8 px-3 bg-[#0a0a0a] border-[#242424] hover:bg-[#1a1a1a] text-neutral-400 hover:text-neutral-200 text-xs shrink-0"
           >
             {ffmpegAvailable ? 'Re-install' : 'Install FFmpeg'}
           </Button>
@@ -271,12 +272,12 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
         {/* Token */}
         <div className="px-4 py-3 space-y-2">
           <div className="flex items-center gap-2">
-            <Puzzle className="h-3.5 w-3.5 text-violet-400 shrink-0" />
-            <span className="text-sm text-zinc-300">Bridge token</span>
-            <span className="text-xs text-zinc-500 ml-auto">Port {bridgePort}</span>
+            <Puzzle className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+            <span className="text-sm text-neutral-300">Bridge token</span>
+            <span className="text-xs text-neutral-500 ml-auto">Port {bridgePort}</span>
           </div>
           <div className="flex gap-2">
-            <div className="flex-1 font-mono text-xs bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-zinc-400 truncate select-all">
+            <div className="flex-1 font-mono text-xs bg-[#0a0a0a] border border-[#242424] rounded-md px-3 py-2 text-neutral-400 truncate select-all">
               {bridgeToken ?? 'Loading...'}
             </div>
             <Button
@@ -284,7 +285,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
               onClick={handleCopyToken}
               disabled={!bridgeToken}
               title="Copy token"
-              className="h-9 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-xs shrink-0"
+              className="h-9 px-3 bg-[#0a0a0a] border-[#242424] hover:bg-[#1a1a1a] text-neutral-400 text-xs shrink-0"
             >
               {tokenCopied ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
             </Button>
@@ -292,26 +293,26 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
               variant="outline"
               onClick={onRegenerateToken}
               title="Generate new token (extension must be reconfigured)"
-              className="h-9 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-xs shrink-0"
+              className="h-9 px-3 bg-[#0a0a0a] border-[#242424] hover:bg-[#1a1a1a] text-neutral-400 text-xs shrink-0"
             >
               <RefreshCw className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <p className="text-xs text-zinc-500">Copy this token and paste it into the Fetchr Companion extension popup.</p>
+          <p className="text-xs text-neutral-500">Copy this token and paste it into the Fetchr Companion extension popup.</p>
         </div>
 
         {/* Extension folder */}
-        <div className="px-4 py-3 space-y-1.5 border-t border-zinc-800/60">
-          <label className="text-sm text-zinc-300">Extension folder</label>
+        <div className="px-4 py-3 space-y-1.5 border-t border-[#242424]">
+          <label className="text-sm text-neutral-300">Extension folder</label>
           <div className="flex gap-2">
-            <div className="flex-1 text-xs bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-zinc-500 truncate">
+            <div className="flex-1 text-xs bg-[#0a0a0a] border border-[#242424] rounded-md px-3 py-2 text-neutral-500 truncate">
               {extensionDir || 'Loading...'}
             </div>
             <Button
               variant="outline"
               onClick={onOpenExtensionFolder}
               disabled={!extensionDir}
-              className="h-9 px-3 bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-xs shrink-0"
+              className="h-9 px-3 bg-[#0a0a0a] border-[#242424] hover:bg-[#1a1a1a] text-neutral-400 text-xs shrink-0"
             >
               <FolderOpen className="h-3.5 w-3.5" />
             </Button>
@@ -319,24 +320,24 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
         </div>
 
         {/* Install guide */}
-        <div className="px-4 py-3 space-y-3 border-t border-zinc-800/60">
+        <div className="px-4 py-3 space-y-3 border-t border-[#242424]">
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setExtGuideTab('chromium')}
-              className={cn('text-xs px-3 py-1 rounded-md transition-colors', extGuideTab === 'chromium' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300')}
+              className={cn('text-xs px-3 py-1 rounded-md transition-colors', extGuideTab === 'chromium' ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-500 hover:text-neutral-300')}
             >
               Chrome / Edge / Brave
             </button>
             <button
               onClick={() => setExtGuideTab('firefox')}
-              className={cn('text-xs px-3 py-1 rounded-md transition-colors', extGuideTab === 'firefox' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300')}
+              className={cn('text-xs px-3 py-1 rounded-md transition-colors', extGuideTab === 'firefox' ? 'bg-neutral-800 text-neutral-100' : 'text-neutral-500 hover:text-neutral-300')}
             >
               Firefox
             </button>
           </div>
 
           {extGuideTab === 'chromium' && (
-            <ol className="space-y-1.5 text-xs text-zinc-400 list-none">
+            <ol className="space-y-1.5 text-xs text-neutral-400 list-none">
               {[
                 'Open chrome://extensions (or edge://extensions)',
                 'Enable Developer Mode — toggle in the top-right corner',
@@ -345,7 +346,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
                 'Paste the bridge token into the extension popup',
               ].map((step, i) => (
                 <li key={i} className="flex gap-2.5">
-                  <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-500 text-[10px] flex items-center justify-center shrink-0 mt-px">{i + 1}</span>
+                  <span className="w-4 h-4 rounded-full bg-neutral-800 text-neutral-500 text-[10px] flex items-center justify-center shrink-0 mt-px">{i + 1}</span>
                   <span>{step}</span>
                 </li>
               ))}
@@ -353,7 +354,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
           )}
 
           {extGuideTab === 'firefox' && (
-            <ol className="space-y-1.5 text-xs text-zinc-400 list-none">
+            <ol className="space-y-1.5 text-xs text-neutral-400 list-none">
               {[
                 'Locate fetchr-companion-firefox.xpi in the extension folder',
                 'Open Firefox → drag and drop the .xpi file onto any browser tab',
@@ -361,7 +362,7 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
                 'Paste the bridge token into the extension popup',
               ].map((step, i) => (
                 <li key={i} className="flex gap-2.5">
-                  <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-500 text-[10px] flex items-center justify-center shrink-0 mt-px">{i + 1}</span>
+                  <span className="w-4 h-4 rounded-full bg-neutral-800 text-neutral-500 text-[10px] flex items-center justify-center shrink-0 mt-px">{i + 1}</span>
                   <span>{step}</span>
                 </li>
               ))}
@@ -370,21 +371,25 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
         </div>
       </Section>
 
-      {/* Save button */}
-      <div className="flex items-center gap-3 pt-2">
+      {/* Spacer */}
+      <div className="h-20" />
+
+      {/* Save button — sticky bottom */}
+      <div className="fixed bottom-0 left-0 right-0 flex items-center gap-4 px-8 py-4 bg-[#0a0a0a]/90 backdrop-blur border-t border-[#242424] z-10">
         <Button
           onClick={handleSave}
           disabled={saving}
-          className="bg-violet-600 hover:bg-violet-700 text-white text-sm px-5"
+          className="bg-rose-500 hover:bg-rose-600 text-white text-sm px-6 h-9"
         >
           {saving ? 'Saving...' : 'Save Settings'}
         </Button>
         {saved && (
           <span className="flex items-center gap-1.5 text-xs text-emerald-400">
             <CheckCircle className="h-3.5 w-3.5" />
-            Saved
+            Saved successfully
           </span>
         )}
+        <span className="text-xs text-neutral-700 ml-auto">Changes apply immediately after saving</span>
       </div>
     </div>
   );
@@ -393,8 +398,8 @@ export function SettingsPage({ settings, onSave, onBrowseFolder, onBrowseCookieF
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
-      <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{title}</h2>
-      <div className="bg-zinc-900/50 border border-zinc-800/60 rounded-xl divide-y divide-zinc-800/60">
+      <h2 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">{title}</h2>
+      <div className="bg-[#141414] border border-[#242424] rounded-xl divide-y divide-[#242424]">
         {children}
       </div>
     </div>
@@ -405,8 +410,8 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   return (
     <div className="px-4 py-3 space-y-1.5">
       <div className="flex items-baseline gap-2">
-        <label className="text-sm text-zinc-300">{label}</label>
-        {hint && <span className="text-xs text-zinc-500">{hint}</span>}
+        <label className="text-sm text-neutral-300">{label}</label>
+        {hint && <span className="text-xs text-neutral-500">{hint}</span>}
       </div>
       {children}
     </div>
@@ -430,13 +435,13 @@ function Toggle({
       onClick={() => onChange(!checked)}
     >
       <div>
-        <p className="text-sm text-zinc-300 group-hover:text-zinc-100 transition-colors">{label}</p>
-        {description && <p className="text-xs text-zinc-500 mt-0.5">{description}</p>}
+        <p className="text-sm text-neutral-300 group-hover:text-neutral-100 transition-colors">{label}</p>
+        {description && <p className="text-xs text-neutral-500 mt-0.5">{description}</p>}
       </div>
       <div
         className={cn(
           'relative w-9 h-5 rounded-full transition-colors shrink-0',
-          checked ? 'bg-violet-600' : 'bg-zinc-700'
+          checked ? 'bg-rose-500' : 'bg-neutral-700'
         )}
       >
         <span

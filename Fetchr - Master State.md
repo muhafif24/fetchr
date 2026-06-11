@@ -18,9 +18,9 @@ Fetchr adalah GUI desktop modern untuk yt-dlp — memungkinkan pengguna mendownl
 
 | Aspek | Status |
 |---|---|
-| Versi aktif | **1.4.1** |
+| Versi aktif | **1.5.0** |
 | Stabilitas | Stabil — siap rilis |
-| Dev mode | Berjalan via `FETCHR_DEV=1` + Vite port 5175 |
+| Dev mode | Berjalan via `FETCHR_DEV=1` + Vite (default port 5173, auto-5176 jika konflik) |
 
 ---
 
@@ -51,7 +51,8 @@ gui/
         ├── App.tsx                      <- Root component + semua state utama
         ├── hooks/usePyApi.ts            <- Python <-> JS bridge + AppSettings type
         └── components/
-            ├── Sidebar.tsx
+            ├── TopBar.tsx               <- Horizontal nav (v1.5.0, menggantikan Sidebar)
+            ├── Sidebar.tsx              <- DEPRECATED, tidak digunakan
             ├── VideoInfoCard.tsx
             ├── ActiveDownloads.tsx      <- pause/resume UI
             ├── FFmpegSetupModal.tsx     <- on-demand FFmpeg download
@@ -59,7 +60,9 @@ gui/
             ├── HistoryTable.tsx
             ├── SettingsPage.tsx         <- preferensi + browser extension section
             ├── PlaylistModal.tsx
-            └── DeleteModal.tsx
+            ├── DeleteModal.tsx          <- hapus 1 item history
+            ├── ClearHistoryModal.tsx    <- hapus semua history (opsi hapus file disk)
+            └── Toast.tsx                <- notifikasi non-blocking (pengganti alert())
 ```
 
 ### Pola Komunikasi
@@ -120,8 +123,8 @@ Browser Extension -> Fetchr:
 - Migrasi otomatis history dari `%APPDATA%\yt-dlp-gui\` ke `%APPDATA%\Fetchr\`
 - GitHub Actions CI (TypeScript + Python syntax check)
 - GitHub Actions auto-update checker (PR otomatis saat yt-dlp rilis baru)
-- Sidebar navigation (Download / Queue / History / Settings)
-- Dark elegant UI (zinc + violet accent)
+- **TopBar horizontal navigation** (v1.5.0) — brand | Download | Queue | History | Settings | dep warning | version
+- **UI Redesign v1.5.0** — rose-500 + neutral palette, full-width layout, consistent empty states, sticky Settings save
 
 ### In Progress
 
@@ -152,6 +155,11 @@ _(lihat `docs-local/` untuk detail)_
 | 2026-06-10 | Buat `version.py` sebagai single source of truth | Sebelumnya versi hardcoded di 3 tempat berbeda (api.py, extension_bridge.py, Sidebar.tsx) |
 | 2026-06-10 | Settings masuk NAV utama Sidebar | Sebelumnya hanya ada sebagai tombol kecil tersembunyi di footer sidebar |
 | 2026-06-10 | Bump versi ke 1.4.1 | Setelah serangkaian UX fix dari hasil audit |
+| 2026-06-10 | UI Redesign penuh ke v1.5.0 (Minimal & Clean) | Topbar dihapus, palet rose-500 + neutral, Inter font, semua komponen didesain ulang visual |
+| 2026-06-10 | Sidebar → TopBar horizontal | User: "tampilannya masih sama" — sidebar hanya ubah warna, bukan layout. TopBar beri konten lebih lebar dan look modern |
+| 2026-06-10 | Queue format selector pindah ke bawah textarea | Sebelumnya float di pojok kanan header card — disconnected secara visual flow; sekarang inline dengan tombol Add |
+| 2026-06-11 | History actions selalu terlihat + divider sebelum Delete | Hasil ux-audit: reveal-on-hover menurunkan discoverability; Play/Folder kini permanen, Delete dipisah divider agar tidak salah klik |
+| 2026-06-11 | `ClearHistoryModal` menggantikan `window.confirm()` | Dialog native putih jarring & tak bertema; modal baru menyediakan opsi hapus file disk vs hapus history saja, konsisten dengan DeleteModal |
 
 ---
 

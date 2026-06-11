@@ -3,16 +3,18 @@ import { usePyApi } from './hooks/usePyApi';
 import { Input } from './components/ui/input';
 import { Button } from './components/ui/button';
 import { Alert, AlertDescription } from './components/ui/alert';
-import { RefreshCw, AlertCircle, X, Link, ListVideo } from 'lucide-react';
+import { RefreshCw, AlertCircle, Link, ListVideo, Download } from 'lucide-react';
 import { cn } from './lib/utils';
 
-import { Sidebar, type Tab } from './components/Sidebar';
+import { TopBar, type Tab } from './components/TopBar';
 import { VideoInfoCard, type VideoInfo } from './components/VideoInfoCard';
 import { ActiveDownloads, type ActiveDownload } from './components/ActiveDownloads';
 import { QueueSection, type QueueItem } from './components/QueueSection';
 import { HistoryTable, type HistoryItem } from './components/HistoryTable';
 import { PlaylistModal, type PlaylistInfo } from './components/PlaylistModal';
 import { DeleteModal } from './components/DeleteModal';
+import { ClearHistoryModal } from './components/ClearHistoryModal';
+import { ToastContainer, type ToastItem, type ToastType } from './components/Toast';
 import { SettingsPage } from './components/SettingsPage';
 import { FFmpegSetupModal } from './components/FFmpegSetupModal';
 import { DEFAULT_SETTINGS, type AppSettings } from './hooks/usePyApi';
@@ -61,13 +63,18 @@ export default function App() {
   const [deleteTarget, setDeleteTarget] = useState<{ index: number; title: string } | null>(null);
   const [deleteFileAlso, setDeleteFileAlso] = useState(false);
 
+  // Clear-all confirmation
+  const [clearAllOpen, setClearAllOpen] = useState(false);
+  const [clearAllDeleteFiles, setClearAllDeleteFiles] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
   // Settings
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const appSettingsRef = useRef(appSettings);
   useEffect(() => { appSettingsRef.current = appSettings; }, [appSettings]);
 
-  // App version (fetched from Python)
-  const [appVersion, setAppVersion] = useState<string>('');
+  // App version (fetched from Python, fallback for dev mode)
+  const [appVersion, setAppVersion] = useState<string>('1.5.0');
 
   // Bridge / extension
   const [bridgeToken, setBridgeToken]       = useState<string | null>(null);
@@ -92,6 +99,15 @@ export default function App() {
   // Update banner
   const [updateInfo, setUpdateInfo] = useState<{ version: string; name: string; url: string } | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
+
+  // Toasts (pengganti alert() native)
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const showToast = (type: ToastType, message: string) => {
+    const id = crypto.randomUUID();
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  };
+  const dismissToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
 
   // ─── Init ────────────────────────────────────────────────────────────────
 
@@ -238,18 +254,43 @@ export default function App() {
     try {
       const res = await api.delete_history_item(deleteTarget.index, deleteFileAlso);
       if (res.success) { loadHistory(); setDeleteTarget(null); setDeleteFileAlso(false); }
-      else alert(`Failed to delete: ${res.error}`);
-    } catch (err: any) { alert(err.message); }
+      else showToast('error', `Failed to delete: ${res.error}`);
+    } catch (err: any) { showToast('error', err.message); }
+  };
+
+  const handleClearAllHistory = () => {
+    if (history.length === 0) return;
+    setClearAllDeleteFiles(false);
+    setClearAllOpen(true);
+  };
+
+  const confirmClearAll = async () => {
+    if (!api) return;
+    setIsClearing(true);
+    try {
+      // Hapus dari index terakhir agar index tetap valid selama loop
+      for (let i = history.length - 1; i >= 0; i--) {
+        await api.delete_history_item(i, clearAllDeleteFiles);
+      }
+      await loadHistory();
+      showToast('success', clearAllDeleteFiles ? 'History cleared and files deleted.' : 'History cleared.');
+    } catch (err: any) {
+      showToast('error', `Failed to clear history: ${err.message}`);
+    } finally {
+      setIsClearing(false);
+      setClearAllOpen(false);
+      setClearAllDeleteFiles(false);
+    }
   };
 
   const handlePlayVideo  = async (folder: string, filename: string) => {
     if (!api) return;
     const res = await api.play_video(folder, filename);
-    if (!res.success) alert(`Failed to play: ${res.error}`);
+    if (!res.success) showToast('error', `Failed to play: ${res.error}`);
   };
 
   const handleOpenFolder = async (folder: string) => {
-    if (!folder) { alert('Folder path is empty.'); return; }
+    if (!folder) { showToast('error', 'Folder path is empty.'); return; }
     if (!api) return;
     await api.open_folder(folder);
   };
@@ -354,7 +395,7 @@ export default function App() {
       const dId = res.download_id;
       setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: currentVideo.title, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel, formatId: selectedFormat, url: currentUrl, folder: outputDir, isResuming: false } }));
       setCurrentVideo(null); setUrl(''); setSubtitleEnabled(false);
-    } else { alert(`Failed to start download: ${res.error}`); }
+    } else { showToast('error', `Failed to start download: ${res.error}`); }
   };
 
   // ─── Playlist ─────────────────────────────────────────────────────────────
@@ -455,22 +496,13 @@ export default function App() {
   const queueDownloadIds    = new Set(queueItems.map((q) => q.downloadId).filter(Boolean) as string[]);
   const standaloneDownloads = Object.values(activeDownloads).filter((d) => !queueDownloadIds.has(d.id));
 
-  // ─── Page titles ─────────────────────────────────────────────────────────
-
-  const PAGE_TITLE: Record<Tab, string> = {
-    download: 'Download',
-    queue:    'Queue',
-    history:  'History',
-    settings: 'Settings',
-  };
-
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#09090b] text-zinc-100">
+    <div className="flex flex-col h-screen bg-[#0a0a0a] text-neutral-100">
 
-      {/* Sidebar */}
-      <Sidebar
+      {/* Top navigation bar */}
+      <TopBar
         activeTab={activeTab}
         onTabChange={setActiveTab}
         queueItems={queueItems}
@@ -480,63 +512,33 @@ export default function App() {
         jsReady={jsStatus.available}
         jsName={jsStatus.name}
         appVersion={appVersion}
+        updateInfo={updateInfo && !updateDismissed ? updateInfo : null}
+        onDismissUpdate={() => setUpdateDismissed(true)}
+        onOpenUpdateUrl={(url) => api?.open_url(url)}
       />
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
-        {/* Top bar */}
-        <header className="h-12 shrink-0 flex items-center justify-between px-5 border-b border-zinc-800/50 bg-[#09090b]">
-          <span className="text-sm font-semibold text-zinc-100">{PAGE_TITLE[activeTab]}</span>
-
-          {/* Update banner */}
-          {updateInfo && !updateDismissed ? (
-            <div className="flex items-center gap-3 text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
-                <span className="text-zinc-400">
-                  Update available:{' '}
-                  <button onClick={() => api?.open_url(updateInfo.url)} className="text-violet-400 hover:text-violet-300 underline underline-offset-2">
-                    {updateInfo.name}
-                  </button>
-                </span>
-              </div>
-              <button onClick={() => setUpdateDismissed(true)} className="text-zinc-700 hover:text-zinc-400">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ) : (
-            <span className="text-[11px] text-zinc-500 select-none">
-              {activeTab === 'download' && 'Press Enter to analyze'}
-              {activeTab === 'queue'    && `${queueItems.filter(i => i.status === 'pending').length} pending`}
-              {activeTab === 'history'  && `${history.length} download${history.length !== 1 ? 's' : ''}`}
-              {activeTab === 'settings' && 'Preferences'}
-            </span>
-          )}
-        </header>
-
-        {/* Content */}
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-2xl mx-auto space-y-5">
+      {/* Content */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-8 pt-8 pb-10 space-y-5">
 
             {/* ── DOWNLOAD TAB ── */}
             {activeTab === 'download' && (
-              <div className="space-y-4">
+              <div className="space-y-6">
 
-                {/* URL Input — inline dengan tombol */}
+                {/* Hero URL input */}
                 <div className="space-y-2">
                   <div className="flex gap-2">
                     <div className="relative flex-1">
-                      <Link className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
+                      <Link className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500 pointer-events-none" />
                       <Input
                         type="text"
-                        placeholder="Paste any video URL (YouTube, TikTok, Instagram, Twitter...)"
+                        placeholder="Paste a video or playlist URL..."
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && (isPlaylistUrl(url) ? handleLoadPlaylist() : handleAnalyze())}
                         className={cn(
-                          'pl-10 h-10 bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-600',
-                          'focus-visible:ring-1 focus-visible:ring-violet-500/50 focus-visible:border-violet-500/50'
+                          'pl-11 h-12 text-sm bg-[#141414] border-[#242424] text-neutral-100 placeholder:text-neutral-600',
+                          'focus-visible:ring-1 focus-visible:ring-rose-500/40 focus-visible:border-rose-500/40'
                         )}
                         disabled={isAnalyzing || isLoadingPlaylist}
                       />
@@ -547,7 +549,7 @@ export default function App() {
                         onClick={handleLoadPlaylist}
                         disabled={isLoadingPlaylist || !url.trim()}
                         variant="outline"
-                        className="h-10 px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border-zinc-700 text-sm font-medium shrink-0"
+                        className="h-12 px-5 bg-[#141414] hover:bg-[#1a1a1a] text-neutral-100 border-[#242424] text-sm font-medium shrink-0"
                       >
                         {isLoadingPlaylist
                           ? <><RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />Loading...</>
@@ -557,7 +559,7 @@ export default function App() {
                       <Button
                         onClick={handleAnalyze}
                         disabled={isAnalyzing || !url.trim()}
-                        className="h-10 px-5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium shrink-0"
+                        className="h-12 px-6 bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium shrink-0"
                       >
                         {isAnalyzing
                           ? <><RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />Analyzing...</>
@@ -567,7 +569,7 @@ export default function App() {
                   </div>
 
                   {isPlaylistUrl(url) && !playlistError && (
-                    <div className="flex items-center gap-1.5 text-xs text-violet-400">
+                    <div className="flex items-center gap-1.5 text-xs text-rose-400 pl-1">
                       <ListVideo className="h-3.5 w-3.5 shrink-0" />
                       <span>Playlist detected — click <strong>Load Playlist</strong> to pick videos</span>
                     </div>
@@ -599,16 +601,19 @@ export default function App() {
                   />
                 )}
 
-                {/* Empty hint */}
+                {/* Empty state — kompak, tidak ada void hitam */}
                 {!currentVideo && !isAnalyzing && (
-                  <div className="flex flex-col items-center justify-center py-16 gap-3 select-none">
-                    <div className="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center">
-                      <img src="/favicon.png" alt="" className="w-8 h-8 opacity-30 rounded-xl" />
+                  <div className="rounded-xl border border-[#242424] bg-[#0d0d0d] px-6 py-10 flex flex-col items-center gap-4 select-none">
+                    <div className="w-14 h-14 rounded-2xl bg-[#141414] border border-[#242424] flex items-center justify-center">
+                      <Download className="h-6 w-6 text-neutral-600" />
                     </div>
-                    <div className="text-center space-y-1">
-                      <p className="text-sm font-medium text-zinc-500">Ready to download</p>
-                      <p className="text-xs text-zinc-500">Paste a video or playlist URL above to get started</p>
+                    <div className="text-center space-y-1.5">
+                      <p className="text-sm font-medium text-neutral-400">Paste a URL above to get started</p>
+                      <p className="text-xs text-neutral-600">YouTube · TikTok · Instagram · Twitter · 1000+ more</p>
                     </div>
+                    <p className="text-[11px] text-neutral-700 border border-[#242424] rounded-md px-3 py-1.5 bg-[#141414] select-none">
+                      Tip: press <kbd className="font-mono text-neutral-500">Enter</kbd> after pasting to analyze instantly
+                    </p>
                   </div>
                 )}
               </div>
@@ -617,6 +622,7 @@ export default function App() {
             {/* ── QUEUE TAB ── */}
             {activeTab === 'queue' && (
               <div className="space-y-5">
+
                 <QueueSection
                   queueItems={queueItems}
                   batchInput={batchInput}
@@ -633,11 +639,11 @@ export default function App() {
                   onQueueFormatChange={setQueueFormat}
                 />
 
-                {/* Download tunggal yang dimulai dari tab Download */}
+                {/* Download tunggal */}
                 {standaloneDownloads.length > 0 && (
                   <div className="flex items-center gap-3 pt-1">
-                    <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider shrink-0">Single Downloads</span>
-                    <div className="flex-1 h-px bg-zinc-800" />
+                    <span className="text-xs font-medium text-neutral-600 uppercase tracking-wider shrink-0">Single Downloads</span>
+                    <div className="flex-1 h-px bg-[#242424]" />
                   </div>
                 )}
                 <ActiveDownloads
@@ -657,6 +663,7 @@ export default function App() {
                 onPlay={handlePlayVideo}
                 onOpenFolder={handleOpenFolder}
                 onDeleteClick={(index, title) => setDeleteTarget({ index, title })}
+                onClearAll={handleClearAllHistory}
               />
             )}
 
@@ -680,7 +687,6 @@ export default function App() {
 
           </div>
         </main>
-      </div>
 
       {/* Modals */}
       {playlistInfo && (
@@ -704,6 +710,17 @@ export default function App() {
         />
       )}
 
+      {clearAllOpen && (
+        <ClearHistoryModal
+          count={history.length}
+          deleteFilesAlso={clearAllDeleteFiles}
+          busy={isClearing}
+          onToggleDeleteFiles={setClearAllDeleteFiles}
+          onConfirm={confirmClearAll}
+          onCancel={() => { setClearAllOpen(false); setClearAllDeleteFiles(false); }}
+        />
+      )}
+
       {/* FFmpeg setup modal — shown when FFmpeg not found and not dismissed */}
       {!ffmpegStatus.available && !ffmpegSetupDismissed && isReady && (
         <FFmpegSetupModal
@@ -717,6 +734,9 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Toasts — pengganti alert() native, non-blocking */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

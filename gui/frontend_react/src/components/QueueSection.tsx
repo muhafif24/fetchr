@@ -39,7 +39,7 @@ interface Props {
 }
 
 const STATUS_STYLE: Record<QueueItem['status'], string> = {
-  pending:     'bg-zinc-800 text-zinc-400',
+  pending:     'bg-neutral-800 text-neutral-400',
   downloading: 'bg-blue-950/60 text-blue-300',
   done:        'bg-emerald-950/60 text-emerald-400',
   error:       'bg-red-950/60 text-red-400',
@@ -63,44 +63,45 @@ export function QueueSection({
     <div className="space-y-5">
 
       {/* Add to Queue */}
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ListVideo className="h-4 w-4 text-zinc-500" />
-            <span className="text-sm font-medium text-zinc-300">Add URLs</span>
-          </div>
-          {/* Format selector */}
-          <div className="relative">
-            <select
-              value={queueFormat}
-              onChange={(e) => onQueueFormatChange(e.target.value)}
-              className="h-8 pl-2.5 pr-7 text-xs bg-zinc-800 border border-zinc-700 text-zinc-300 rounded-md focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer"
-            >
-              {QUEUE_FORMATS.map((f) => (
-                <option key={f.id} value={f.id} className="bg-zinc-900">{f.label}</option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-500" />
-          </div>
+      <div className="rounded-lg border border-[#242424] bg-[#141414] p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <ListVideo className="h-4 w-4 text-neutral-500" />
+          <span className="text-sm font-medium text-neutral-300">Add URLs</span>
+          <span className="text-xs text-neutral-600 ml-1">— one per line</span>
         </div>
 
         <textarea
-          placeholder={"Paste one or more URLs, one per line...\nhttps://youtube.com/watch?v=...\nhttps://tiktok.com/@user/video/..."}
+          placeholder={"https://youtube.com/watch?v=...\nhttps://tiktok.com/@user/video/...\nhttps://instagram.com/p/..."}
           value={batchInput}
           onChange={(e) => onBatchInputChange(e.target.value)}
           rows={3}
-          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-200 placeholder:text-zinc-700 text-sm rounded-md p-3 focus:outline-none focus:border-violet-500/50 resize-none transition-colors"
+          className="w-full bg-[#0a0a0a] border border-[#242424] text-neutral-200 placeholder:text-neutral-700 text-sm rounded-md p-3 focus:outline-none focus:border-rose-500/40 resize-none transition-colors"
         />
 
-        <Button
-          onClick={onAddToQueue}
-          disabled={!batchInput.trim()}
-          variant="outline"
-          className="w-full h-9 bg-zinc-800/50 border-zinc-700 hover:bg-zinc-800 text-zinc-300 text-sm"
-        >
-          <Plus className="mr-2 h-3.5 w-3.5" />
-          Add to Queue
-        </Button>
+        {/* Format selector + Add button — satu baris */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <select
+              value={queueFormat}
+              onChange={(e) => onQueueFormatChange(e.target.value)}
+              className="w-full h-9 pl-2.5 pr-7 text-xs bg-[#0a0a0a] border border-[#242424] text-neutral-300 rounded-md focus:outline-none focus:border-rose-500/40 appearance-none cursor-pointer"
+            >
+              {QUEUE_FORMATS.map((f) => (
+                <option key={f.id} value={f.id} className="bg-[#141414]">{f.label}</option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-neutral-500" />
+          </div>
+          <Button
+            onClick={onAddToQueue}
+            disabled={!batchInput.trim()}
+            variant="outline"
+            className="h-9 px-4 bg-[#0a0a0a] border-[#242424] hover:bg-[#1a1a1a] text-neutral-300 text-sm disabled:opacity-40 shrink-0"
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            {batchInput.trim() ? 'Add to Queue' : 'Paste URLs above'}
+          </Button>
+        </div>
       </div>
 
       {/* Queue list */}
@@ -108,10 +109,10 @@ export function QueueSection({
         <div className="space-y-3">
           {/* Actions bar */}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-500">{queueItems.length} item{queueItems.length !== 1 ? 's' : ''}</span>
+            <span className="text-xs text-neutral-500">{queueItems.length} item{queueItems.length !== 1 ? 's' : ''}</span>
             <div className="flex items-center gap-3">
               {doneOrErrorCount > 0 && (
-                <button onClick={onClearDone} className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                <button onClick={onClearDone} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">
                   Clear done
                 </button>
               )}
@@ -121,7 +122,7 @@ export function QueueSection({
                 </button>
               )}
               {queueItems.length > 0 && (
-                <button onClick={onClearAll} className="text-xs text-zinc-600 hover:text-red-400 transition-colors">
+                <button onClick={onClearAll} className="text-xs text-neutral-700 hover:text-red-400 transition-colors">
                   Clear all
                 </button>
               )}
@@ -141,12 +142,12 @@ export function QueueSection({
                     'rounded-lg border px-3 py-2.5 space-y-2',
                     item.status === 'done'        ? 'bg-emerald-950/10 border-emerald-900/20' :
                     item.status === 'error'       ? 'bg-red-950/10 border-red-900/20' :
-                    item.status === 'downloading' ? 'bg-zinc-900/60 border-zinc-800' :
-                    'bg-zinc-900/30 border-zinc-800/60'
+                    item.status === 'downloading' ? 'bg-[#141414] border-[#242424]' :
+                    'bg-[#141414]/60 border-[#242424]/60'
                   )}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <p className="flex-1 text-sm text-zinc-200 truncate" title={item.title || item.url}>
+                    <p className="flex-1 text-sm text-neutral-200 truncate" title={item.title || item.url}>
                       {item.title || item.url}
                     </p>
                     <span className={cn('text-[10px] font-semibold px-2 py-px rounded-full shrink-0', STATUS_STYLE[item.status])}>
@@ -157,7 +158,7 @@ export function QueueSection({
                         if (item.status === 'downloading' && item.downloadId) onCancelQueueItem(item.downloadId);
                         else onRemoveFromQueue(item.id);
                       }}
-                      className="text-zinc-700 hover:text-zinc-400 shrink-0 transition-colors"
+                      className="text-neutral-700 hover:text-neutral-400 shrink-0 transition-colors"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -166,16 +167,16 @@ export function QueueSection({
                   {live && item.status === 'downloading' && (
                     <div className="space-y-1">
                       {isMerging ? (
-                        <div className="h-1 w-full rounded-full bg-zinc-950 overflow-hidden">
-                          <div className="h-full bg-violet-600 animate-pulse rounded-full w-full" />
+                        <div className="h-1 w-full rounded-full bg-[#0a0a0a] overflow-hidden">
+                          <div className="h-full bg-rose-500 animate-pulse rounded-full w-full" />
                         </div>
                       ) : (
-                        <Progress value={live.progress} className="h-1 bg-zinc-950" />
+                        <Progress value={live.progress} className="h-1 bg-[#0a0a0a]" />
                       )}
-                      <div className="flex justify-between text-[10px] text-zinc-500">
+                      <div className="flex justify-between text-[10px] text-neutral-500">
                         <span>{isMerging ? 'Merging with FFmpeg…' : live.phase >= 2 ? `Audio · ${live.speed}` : `Video · ${live.speed}`}</span>
                         {!isMerging && (
-                          <span className="text-zinc-400 tabular-nums">{live.progress}%</span>
+                          <span className="text-neutral-400 tabular-nums">{live.progress}%</span>
                         )}
                       </div>
                     </div>
@@ -193,7 +194,7 @@ export function QueueSection({
           <Button
             onClick={onDownloadQueue}
             disabled={pendingCount === 0}
-            className="w-full h-9 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-sm font-medium"
+            className="w-full h-9 bg-rose-500 hover:bg-rose-600 disabled:opacity-40 text-white text-sm font-medium"
           >
             <Download className="mr-2 h-3.5 w-3.5" />
             {pendingCount > 0
@@ -207,7 +208,7 @@ export function QueueSection({
 
       {/* Empty state */}
       {queueItems.length === 0 && (
-        <div className="text-center py-12 text-zinc-500 text-sm select-none">
+        <div className="text-center py-12 text-neutral-600 text-sm select-none">
           No items in queue. Add URLs above or use the Download tab.
         </div>
       )}

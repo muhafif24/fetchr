@@ -32,11 +32,11 @@ export function ActiveDownloads({ downloads, onCancel, onPause, onResume, onDism
   if (downloads.length === 0) return null;
 
   return (
-    <Card className="bg-zinc-900/50 border-zinc-800/60 shadow-xl">
+    <Card className="bg-[#141414] border-[#242424]">
       <CardHeader className="py-4">
-        <CardTitle className="text-sm font-semibold tracking-wider text-zinc-400 uppercase flex items-center gap-2">
+        <CardTitle className="text-sm font-semibold tracking-wider text-neutral-500 uppercase flex items-center gap-2">
           Active Downloads
-          <span className="text-[10px] font-bold bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full">
+          <span className="text-[10px] font-bold bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded-full">
             {downloads.length}
           </span>
         </CardTitle>
@@ -54,15 +54,15 @@ export function ActiveDownloads({ downloads, onCancel, onPause, onResume, onDism
                 isError
                   ? 'bg-red-950/10 border-red-900/20'
                   : isDone
-                  ? 'bg-violet-950/10 border-violet-900/20'
+                  ? 'bg-emerald-950/10 border-emerald-900/20'
                   : isPaused
                   ? 'bg-amber-950/10 border-amber-900/20'
-                  : 'bg-white/[0.01] border-white/[0.04]'
+                  : 'bg-[#0a0a0a] border-[#242424]'
               }`}
             >
               {/* Title + action buttons */}
               <div className="flex items-center gap-3 min-w-0">
-                <span className="text-sm font-semibold text-slate-200 truncate flex-1" title={item.title}>
+                <span className="text-sm font-semibold text-neutral-200 truncate flex-1" title={item.title}>
                   {item.title}
                 </span>
 
@@ -76,7 +76,7 @@ export function ActiveDownloads({ downloads, onCancel, onPause, onResume, onDism
                   <button
                     onClick={() => onDismiss(item.id)}
                     title="Dismiss"
-                    className="text-zinc-600 hover:text-zinc-400 shrink-0 transition-colors"
+                    className="text-neutral-600 hover:text-neutral-400 shrink-0 transition-colors"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -92,7 +92,7 @@ export function ActiveDownloads({ downloads, onCancel, onPause, onResume, onDism
                     <button
                       onClick={() => onCancel(item.id)}
                       title="Cancel download"
-                      className="flex items-center gap-1 text-xs text-zinc-500 hover:text-red-400 border border-zinc-800 hover:border-red-900/40 px-2 py-1 rounded-lg transition-all"
+                      className="flex items-center gap-1 text-xs text-neutral-500 hover:text-red-400 border border-[#242424] hover:border-red-900/40 px-2 py-1 rounded-lg transition-all"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -121,13 +121,13 @@ export function ActiveDownloads({ downloads, onCancel, onPause, onResume, onDism
 
               {/* Progress bar */}
               {isDone ? (
-                <div className="h-1.5 w-full rounded-full bg-zinc-950 overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-violet-600 to-pink-500 animate-pulse rounded-full w-full" />
+                <div className="h-1.5 w-full rounded-full bg-[#0a0a0a] overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full w-full" />
                 </div>
               ) : (
                 <Progress
                   value={item.progress}
-                  className="h-1.5 bg-zinc-950"
+                  className="h-1.5 bg-[#0a0a0a]"
                   style={{ backgroundColor: isError ? 'rgba(239,68,68,0.12)' : isPaused ? 'rgba(245,158,11,0.08)' : undefined }}
                 />
               )}
@@ -139,10 +139,10 @@ export function ActiveDownloads({ downloads, onCancel, onPause, onResume, onDism
                     isError
                       ? 'text-red-400'
                       : isDone
-                      ? 'text-violet-400'
+                      ? 'text-emerald-400'
                       : isPaused
                       ? 'text-amber-400'
-                      : 'text-zinc-400'
+                      : 'text-neutral-400'
                   }`}
                 >
                   {isDone
@@ -160,12 +160,12 @@ export function ActiveDownloads({ downloads, onCancel, onPause, onResume, onDism
                     : `Downloading video · ${item.speed}`}
                 </span>
                 {item.status === 'downloading' && (
-                  <div className="flex items-center gap-3 text-zinc-500 shrink-0">
+                  <div className="flex items-center gap-3 text-neutral-500 shrink-0">
                     <span>
                       {item.total !== '—' ? `${item.downloaded} / ${item.total}` : item.downloaded}
                     </span>
                     <span>ETA {item.eta}</span>
-                    <span className="text-zinc-200 font-bold tabular-nums">{item.progress}%</span>
+                    <span className="text-neutral-200 font-bold tabular-nums">{item.progress}%</span>
                   </div>
                 )}
               </div>

@@ -12,13 +12,20 @@ build/
 dist/
 *.spec
 
+# Node (semua level — termasuk root tooling spt playwright)
+node_modules/
+# Root dev cruft (playwright untuk screenshot — bukan bagian app)
+/package.json
+/package-lock.json
+
 # Frontend
-gui/frontend_react/node_modules/
 gui/frontend_react/dist/
 gui/frontend_react/screenshots/
 
 # Dev tools
 gui/frontend_react/screenshot*.mjs
+_ss_*.cjs
+_ss_*.png
 
 # Binaries (download separately)
 gui/bin/ffmpeg.exe

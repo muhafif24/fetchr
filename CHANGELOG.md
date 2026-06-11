@@ -4,6 +4,31 @@ All notable changes to Fetchr will be documented here.
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-06-10
+
+### Changed — UI Redesign (TopBar + Layout Baru)
+- **Sidebar dihapus**, diganti **TopBar horizontal** — navigasi sejajar di atas konten; menghemat ~200px lebar
+- **Konten full-width** `max-w-3xl` centered dengan padding konsisten, bukan kolom sempit di samping sidebar
+- **Palet warna baru**: `#0a0a0a` app bg · `#141414` card/surface · `#242424` border · `#f43f5e` rose-500 sebagai aksen utama, menggantikan zinc + violet
+- **Font Inter** diinstall via `@fontsource-variable/inter`, konsisten di semua mesin tanpa bergantung font sistem
+- **TopBar**: brand (logo + "Fetchr") | tabs (icon+label) | `⚠ FFmpeg missing` contextual warning | update banner | versi `v1.5.0`
+- **Tab active indicator**: underline rose-500 di bawah tab aktif, latar `bg-neutral-800/40`
+- **Empty states** Download + History: bordered card `rounded-xl border border-[#242424] bg-[#0d0d0d]` menggantikan konten melayang di tengah void hitam
+- **Queue — format selector**: dipindah dari pojok kanan card header ke bawah textarea, sebaris dengan tombol "Add to Queue" — lebih logis secara flow
+- **Settings — Save button**: sticky `fixed bottom-0` dengan backdrop-blur, tidak lagi terkubur di bawah scroll
+- **Settings — section headers**: kontras dinaikkan `text-neutral-600` → `text-neutral-500` agar lebih terbaca
+- **VideoInfoCard**: thumbnail `w-44`, tombol "Start Download" rose-500, label minimal tanpa uppercase tracking
+- **ActiveDownloads**: progress bar selesai emerald (bukan violet), status `text-emerald-400`
+- **HistoryTable**: pseudo-tabel dengan kolom Date + Format + Actions, row hover `bg-[#1a1a1a]`
+  - Format ditampilkan sebagai **badge ringkas** (4K, 1080p, MP3, Auto) — label panjang tetap di tooltip
+  - **Relative date**: "Today" / "Yesterday" / "Mon" / "Jun 10" menggantikan timestamp ISO mentah
+  - Aksi **Play + Open Folder selalu terlihat**, dipisah **divider** dari tombol Delete agar tidak salah klik
+  - Tombol **Clear All** (merah, dengan ikon) di atas tabel
+- **Clear All History modal** (`ClearHistoryModal`) — bertema gelap konsisten, dengan opsi **"Also delete the video files from your computer"**: hapus history saja atau sekalian hapus file dari disk; menampilkan peringatan saat opsi disk aktif; menggantikan `window.confirm()` native yang putih/jarring
+- **Themed toast** (`Toast` + `ToastContainer`) — notifikasi non-blocking pojok kanan-bawah, auto-dismiss 4s + progress bar, ikon per jenis (error/success/info); menggantikan **semua `alert()` native** yang memblokir UI & keluar dari tema
+- **Modals** (FFmpegSetup, Delete, Playlist, ClearHistory): bg `#141414`, border `#242424`, overlay `bg-black/75` — semua diselaraskan; violet → rose-500
+- **Versi fallback**: `v1.5.0` tampil di dev mode (tidak perlu PyWebview)
+
 ## [1.4.1] — 2026-06-10
 
 ### Fixed
