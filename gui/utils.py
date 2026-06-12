@@ -21,7 +21,7 @@ def get_bundled_bin_dir():
     Menangani mode frozen PyInstaller (--onedir) dan mode development.
     """
     if getattr(sys, 'frozen', False):
-        # Frozen mode: cari relatif ke yt-dlp.exe (bukan _internal/)
+        # Frozen mode: cari relatif ke Fetchr.exe (bukan _internal/)
         app_dir = os.path.dirname(sys.executable)
         bin_dir = os.path.join(app_dir, "gui", "bin")
         if not os.path.exists(bin_dir):

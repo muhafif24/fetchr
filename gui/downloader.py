@@ -110,7 +110,7 @@ class DownloadManager:
             self._window.evaluate_js(js)
 
     def _run_download(self, download_id, url, format_id, output_path, subtitle_lang=None, embed_subs=True,
-                      rate_limit=None, proxy=None, cookie_file=None):
+                      rate_limit=None, proxy=None, cookie_file=None, subtitle_is_auto=False):
         self._semaphore.acquire()
 
         ffmpeg_info = check_ffmpeg()
@@ -135,20 +135,28 @@ class DownloadManager:
             ydl_opts['ffmpeg_location'] = os.path.dirname(ffmpeg_info["ffmpeg_path"])
 
         if subtitle_lang and format_id != 'bestaudio':
-            ydl_opts['writesubtitles'] = True
-            ydl_opts['writeautomaticsub'] = True
+            if subtitle_is_auto:
+                ydl_opts['writeautomaticsub'] = True
+            else:
+                ydl_opts['writesubtitles'] = True
             ydl_opts['subtitleslangs'] = [subtitle_lang]
             ydl_opts['subtitlesformat'] = 'srt/vtt/best'
+            ydl_opts['sleep_interval_subtitles'] = 2  # 2s gap prevents 429 on auto-translated subs
+            ydl_opts['extractor_retries'] = 3         # retry info extraction on rate limit
             if embed_subs and ffmpeg_info["available"]:
                 ydl_opts.setdefault('postprocessors', []).append(
                     {'key': 'FFmpegEmbedSubtitle', 'already_have_subtitle': False}
                 )
+
+        _HEIGHT_PRESETS = {'2160', '1440', '1080', '720', '480', '360'}
 
         if format_id == "bestaudio":
             ydl_opts.update({
                 'format': 'bestaudio/best',
                 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}],
             })
+        elif format_id in _HEIGHT_PRESETS:
+            ydl_opts['format'] = f"bestvideo[height<={format_id}]+bestaudio/best"
         elif format_id and format_id != "best":
             ydl_opts['format'] = f"{format_id}+bestaudio/best"
         else:
@@ -170,7 +178,9 @@ class DownloadManager:
                         f"if(window.onDownloadStarted){{window.onDownloadStarted({json.dumps(download_id)},{json.dumps(title)});}}"
                     )
 
-                ydl.download([url])
+                # process_info reuses already-fetched info — avoids second info-page
+                # request that previously caused 429 rate limiting
+                ydl.process_info(info)
 
             if self._window:
                 sanitized_title = sanitize_filename(title)
@@ -227,11 +237,11 @@ class DownloadManager:
                     self.active_downloads[download_id]["running"] = False
 
     def start_download(self, download_id, url, format_id, output_path, subtitle_lang=None, embed_subs=True,
-                       rate_limit=None, proxy=None, cookie_file=None):
+                       rate_limit=None, proxy=None, cookie_file=None, subtitle_is_auto=False):
         thread = threading.Thread(
             target=self._run_download,
             args=(download_id, url, format_id, output_path, subtitle_lang, embed_subs,
-                  rate_limit, proxy, cookie_file),
+                  rate_limit, proxy, cookie_file, subtitle_is_auto),
             daemon=True,
         )
         with self.lock:
@@ -274,3 +284,10 @@ class DownloadManager:
                 return {"id": download_id, "status": info["status"],
                         "running": info["running"], "title": info["title"]}
         return None
+
+    def cancel_all(self):
+        """Set cancel_flag pada semua download aktif. Dipanggil saat app mau keluar."""
+        with self.lock:
+            for dl in self.active_downloads.values():
+                if dl.get("running"):
+                    dl["cancel_flag"] = True

@@ -46,7 +46,7 @@ export interface PyApiInterface {
         formats?: Array<{ id: string; label: string; ext: string; size: string }>;
         subtitles?: Array<{ code: string; name: string; auto: boolean }>;
     }>;
-    start_download: (url: string, formatId: string, outputPath: string, subtitleLang?: string | null, embedSubs?: boolean) => Promise<{
+    start_download: (url: string, formatId: string, outputPath: string, subtitleLang?: string | null, embedSubs?: boolean, subtitleIsAuto?: boolean) => Promise<{
         success: boolean;
         download_id?: string;
         error?: string;
@@ -92,6 +92,7 @@ export interface PyApiInterface {
         count?: number;
         entries?: Array<{ index: number; id: string; title: string; url: string; duration: string }>;
     }>;
+    clear_history: (deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>;
 }
 
 export function usePyApi() {

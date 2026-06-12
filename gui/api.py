@@ -1,9 +1,13 @@
 import os
+import ssl
 import json
 import uuid
 import zipfile
 import threading
+import datetime
+import glob
 import urllib.request
+import urllib.error
 import webbrowser
 import webview
 from yt_dlp import YoutubeDL
@@ -14,6 +18,51 @@ from downloader import DownloadManager
 from version import APP_VERSION
 
 GITHUB_REPO = "muhafif24/Fetchr"
+
+# ── Subtitle language lookup ──────────────────────────────────────────────────
+_LANG_NAMES = {
+    'af': 'Afrikaans', 'sq': 'Albanian', 'am': 'Amharic',
+    'ar': 'Arabic', 'hy': 'Armenian', 'az': 'Azerbaijani',
+    'eu': 'Basque', 'be': 'Belarusian', 'bn': 'Bengali',
+    'bs': 'Bosnian', 'bg': 'Bulgarian', 'ca': 'Catalan',
+    'zh': 'Chinese', 'zh-Hans': 'Chinese (Simplified)',
+    'zh-Hant': 'Chinese (Traditional)', 'zh-TW': 'Chinese (Taiwan)',
+    'hr': 'Croatian', 'cs': 'Czech', 'da': 'Danish',
+    'nl': 'Dutch', 'en': 'English', 'et': 'Estonian',
+    'fil': 'Filipino', 'fi': 'Finnish', 'fr': 'French',
+    'gl': 'Galician', 'ka': 'Georgian', 'de': 'German',
+    'el': 'Greek', 'gu': 'Gujarati', 'ha': 'Hausa',
+    'he': 'Hebrew', 'iw': 'Hebrew', 'hi': 'Hindi',
+    'hu': 'Hungarian', 'is': 'Icelandic', 'ig': 'Igbo',
+    'id': 'Indonesian', 'ga': 'Irish', 'it': 'Italian',
+    'ja': 'Japanese', 'jv': 'Javanese', 'kn': 'Kannada',
+    'kk': 'Kazakh', 'km': 'Khmer', 'ko': 'Korean',
+    'ku': 'Kurdish', 'ky': 'Kyrgyz', 'lo': 'Lao',
+    'lv': 'Latvian', 'lt': 'Lithuanian', 'lb': 'Luxembourgish',
+    'mk': 'Macedonian', 'mg': 'Malagasy', 'ms': 'Malay',
+    'ml': 'Malayalam', 'mt': 'Maltese', 'mi': 'Maori',
+    'mr': 'Marathi', 'mn': 'Mongolian', 'my': 'Burmese',
+    'ne': 'Nepali', 'no': 'Norwegian', 'ny': 'Nyanja',
+    'ps': 'Pashto', 'fa': 'Persian', 'pl': 'Polish',
+    'pt': 'Portuguese', 'pt-BR': 'Portuguese (Brazil)',
+    'pt-PT': 'Portuguese (Portugal)', 'pa': 'Punjabi',
+    'ro': 'Romanian', 'ru': 'Russian', 'sm': 'Samoan',
+    'sr': 'Serbian', 'sn': 'Shona', 'sd': 'Sindhi',
+    'si': 'Sinhala', 'sk': 'Slovak', 'sl': 'Slovenian',
+    'so': 'Somali', 'st': 'Sesotho', 'es': 'Spanish',
+    'su': 'Sundanese', 'sw': 'Swahili', 'sv': 'Swedish',
+    'tg': 'Tajik', 'ta': 'Tamil', 'te': 'Telugu',
+    'th': 'Thai', 'tr': 'Turkish', 'tk': 'Turkmen',
+    'uk': 'Ukrainian', 'ur': 'Urdu', 'uz': 'Uzbek',
+    'vi': 'Vietnamese', 'cy': 'Welsh', 'xh': 'Xhosa',
+    'yi': 'Yiddish', 'yo': 'Yoruba', 'zu': 'Zulu',
+}
+_LANG_PRIORITY = [
+    'en', 'id', 'ms', 'zh', 'zh-Hans', 'zh-Hant', 'es', 'fr',
+    'de', 'ja', 'ko', 'ar', 'pt', 'pt-BR', 'ru', 'hi', 'th',
+    'vi', 'tr', 'it', 'nl', 'pl', 'uk', 'bn', 'fa', 'sw', 'fil',
+]
+_LANG_PRIORITY_RANK = {c: i for i, c in enumerate(_LANG_PRIORITY)}
 
 DEFAULT_SETTINGS = {
     "outputDir": os.path.join(os.path.expanduser("~"), "Downloads"),
@@ -41,6 +90,7 @@ class Api:
             notify_prefs=self._settings.get("notify", DEFAULT_SETTINGS["notify"]),
         )
         self._history_file = os.path.join(get_app_data_dir(), "history.json")
+        self._history_lock = threading.Lock()
         self._ensure_history_exists()
 
     def set_window(self, window):
@@ -51,6 +101,39 @@ class Api:
         if not os.path.exists(self._history_file):
             with open(self._history_file, 'w', encoding='utf-8') as f:
                 json.dump([], f)
+
+    def _read_history_locked(self) -> list:
+        """Baca history.json — HARUS dipanggil di dalam _history_lock."""
+        try:
+            with open(self._history_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            return []
+
+    def _delete_file_for_item(self, item: dict):
+        """Hapus file fisik untuk satu history item jika ada."""
+        folder = item.get("folder")
+        filename = item.get("filename")
+        if not folder or not filename:
+            return
+        file_path = os.path.join(folder, filename)
+        if not os.path.exists(file_path):
+            base_name, _ = os.path.splitext(filename)
+            sanitized_base = sanitize_filename(base_name)
+            for pattern in [
+                os.path.join(folder, f"{base_name}.*"),
+                os.path.join(folder, f"{sanitized_base}.*"),
+            ]:
+                matches = [m for m in glob.glob(pattern)
+                           if not m.endswith('.part') and not m.endswith('.ytdl')]
+                if matches:
+                    file_path = matches[0]
+                    break
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                print(f"Failed to delete file: {e}")
 
     def _load_settings(self):
         try:
@@ -173,15 +256,46 @@ class Api:
                     f"if(window.onFfmpegComplete){{window.onFfmpegComplete({json.dumps(success)},{json.dumps(error)});}}"
                 )
 
+        def _make_ssl_ctx():
+            ctx = ssl.create_default_context()
+            try:
+                import certifi
+                ctx = ssl.create_default_context(cafile=certifi.where())
+            except ImportError:
+                pass
+            return ctx
+
         try:
             os.makedirs(ffmpeg_dir, exist_ok=True)
             push(0)
 
-            def reporthook(count, block_size, total_size):
-                if total_size > 0:
-                    push(min(int(count * block_size * 100 / total_size), 95))
+            ctx = _make_ssl_ctx()
+            req = urllib.request.Request(
+                FFMPEG_URL,
+                headers={"User-Agent": f"Fetchr/{APP_VERSION}"}
+            )
+            try:
+                response = urllib.request.urlopen(req, context=ctx, timeout=120)
+            except (ssl.SSLError, urllib.error.URLError):
+                # urllib membungkus SSLError dalam URLError — buat context baru tanpa verifikasi
+                fallback_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                fallback_ctx.check_hostname = False
+                fallback_ctx.verify_mode = ssl.CERT_NONE
+                response = urllib.request.urlopen(req, context=fallback_ctx, timeout=120)
 
-            urllib.request.urlretrieve(FFMPEG_URL, zip_path, reporthook)
+            total = int(response.headers.get('Content-Length', 0) or 0)
+            downloaded = 0
+            with open(zip_path, 'wb') as f:
+                while True:
+                    chunk = response.read(65536)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total > 0:
+                        push(min(int(downloaded * 100 / total), 95))
+            response.close()
+
             push(96, "extracting")
 
             with zipfile.ZipFile(zip_path, 'r') as z:
@@ -324,30 +438,28 @@ class Api:
                         })
 
                 # Extract available subtitle languages
-                _lang_names = {
-                    'en': 'English', 'id': 'Indonesian', 'ja': 'Japanese',
-                    'ko': 'Korean', 'zh-Hans': 'Chinese (Simplified)',
-                    'zh-Hant': 'Chinese (Traditional)', 'zh': 'Chinese',
-                    'es': 'Spanish', 'fr': 'French', 'de': 'German',
-                    'pt': 'Portuguese', 'ru': 'Russian', 'ar': 'Arabic',
-                    'hi': 'Hindi', 'th': 'Thai', 'vi': 'Vietnamese',
-                    'ms': 'Malay', 'it': 'Italian', 'nl': 'Dutch',
-                    'tr': 'Turkish', 'pl': 'Polish', 'uk': 'Ukrainian',
-                }
                 subtitles = []
                 seen_codes = set()
+
+                # Manual subtitles first (always shown, video-provided)
                 for code, _ in (info.get('subtitles') or {}).items():
                     if code == 'live_chat':
                         continue
-                    name = _lang_names.get(code, code.upper())
+                    name = _LANG_NAMES.get(code, code)
                     subtitles.append({'code': code, 'name': name, 'auto': False})
                     seen_codes.add(code)
+
+                # Auto-generated captions — all available languages, sorted by priority
+                auto_entries = []
                 for code, _ in (info.get('automatic_captions') or {}).items():
                     if code in seen_codes or code == 'live_chat':
                         continue
-                    name = _lang_names.get(code, code.upper())
-                    subtitles.append({'code': code, 'name': f'{name} (auto)', 'auto': True})
+                    name = _LANG_NAMES.get(code, code)
+                    auto_entries.append({'code': code, 'name': f'{name} (auto)', 'auto': True})
                     seen_codes.add(code)
+
+                auto_entries.sort(key=lambda x: (_LANG_PRIORITY_RANK.get(x['code'], 999), x['code']))
+                subtitles.extend(auto_entries)
 
                 return {
                     "success": True,
@@ -361,7 +473,7 @@ class Api:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    def start_download(self, url, format_id, output_path, subtitle_lang=None, embed_subs=True):
+    def start_download(self, url, format_id, output_path, subtitle_lang=None, embed_subs=True, subtitle_is_auto=False):
         """
         Memulai proses pengunduhan.
         """
@@ -382,6 +494,7 @@ class Api:
             rate_limit=self._settings.get("rateLimit", "") or None,
             proxy=self._settings.get("proxy", "") or None,
             cookie_file=self._settings.get("cookieFile", "") or None,
+            subtitle_is_auto=subtitle_is_auto,
         )
         
         if success:
@@ -426,6 +539,7 @@ class Api:
     def _on_bridge_url(self, url: str):
         """Called by extension_bridge when a URL arrives from the browser extension."""
         if self._window:
+            self._window.show()
             self._window.evaluate_js(
                 f"if(window.onReceiveUrl){{window.onReceiveUrl({json.dumps(url)});}}"
             )
@@ -434,103 +548,92 @@ class Api:
         """Called by extension_bridge for POST /download — mulai unduhan langsung
         dengan format preset. Routing lewat frontend agar muncul & ter-track di UI."""
         if self._window:
+            self._window.show()
             self._window.evaluate_js(
                 f"if(window.onReceiveDownload){{window.onReceiveDownload({json.dumps(url)},{json.dumps(format_id)});}}"
             )
+
+    def _on_bridge_analyze(self, url: str) -> list:
+        """Called by extension_bridge for POST /analyze — return format list nyata untuk URL."""
+        try:
+            result = self.get_video_info(url)
+            if result.get("success"):
+                return result.get("formats", [])
+        except Exception:
+            pass
+        return []
 
     def get_download_history(self):
         """
         Mengambil riwayat unduhan dari history.json.
         """
-        try:
-            with open(self._history_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            return []
+        with self._history_lock:
+            return self._read_history_locked()
 
     def add_to_history(self, title, url, format_label, output_dir, filename):
         """
         Menambahkan item ke berkas riwayat JSON.
         """
-        try:
-            history = self.get_download_history()
-            
-            # Format item riwayat baru
-            import datetime
-            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
-            new_item = {
-                "title": title,
-                "url": url,
-                "format": format_label,
-                "date": now,
-                "folder": output_dir,
-                "filename": filename
-            }
-            
-            # Batasi riwayat hanya sampai 50 item terakhir agar tidak membengkak
-            history.insert(0, new_item)
-            history = history[:50]
-            
-            with open(self._history_file, 'w', encoding='utf-8') as f:
-                json.dump(history, f, indent=4, ensure_ascii=False)
-                
-            return True
-        except Exception as e:
-            print(f"Failed to save history: {e}")
-            return False
+        with self._history_lock:
+            try:
+                history = self._read_history_locked()
+                now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                new_item = {
+                    "title": title,
+                    "url": url,
+                    "format": format_label,
+                    "date": now,
+                    "folder": output_dir,
+                    "filename": filename
+                }
+                history.insert(0, new_item)
+                history = history[:50]
+                with open(self._history_file, 'w', encoding='utf-8') as f:
+                    json.dump(history, f, indent=4, ensure_ascii=False)
+                return True
+            except Exception as e:
+                print(f"Failed to save history: {e}")
+                return False
 
     def delete_history_item(self, index, delete_file):
         """
         Menghapus item riwayat berdasarkan indeksnya.
         Jika delete_file = True, hapus juga file video fisiknya dari disk.
         """
-        try:
-            history = self.get_download_history()
-            if index < 0 or index >= len(history):
-                return {"success": False, "error": "Invalid index."}
-                
-            item = history[index]
-            
-            # Jika diminta menghapus berkas fisik
-            if delete_file:
-                folder = item.get("folder")
-                filename = item.get("filename")
-                if folder and filename:
-                    file_path = os.path.join(folder, filename)
-                    # Fallback ke pencarian wildcard jika file dengan ekstensi asli tidak ada
-                    if not os.path.exists(file_path):
-                        import glob
-                        base_name, _ = os.path.splitext(filename)
-                        sanitized_base = sanitize_filename(base_name)
-                        patterns = [
-                            os.path.join(folder, f"{base_name}.*"),
-                            os.path.join(folder, f"{sanitized_base}.*")
-                        ]
-                        for pattern in patterns:
-                            matches = glob.glob(pattern)
-                            valid_matches = [m for m in matches if not m.endswith('.part') and not m.endswith('.ytdl')]
-                            if valid_matches:
-                                file_path = valid_matches[0]
-                                break
-                                
-                    if os.path.exists(file_path):
-                        try:
-                            os.remove(file_path)
-                        except Exception as e:
-                            # Catat saja jika gagal menghapus file (misal karena terkunci)
-                            print(f"Failed to delete file: {e}")
-                            
-            # Hapus dari list riwayat
-            history.pop(index)
-            
-            # Simpan kembali ke JSON
-            with open(self._history_file, 'w', encoding='utf-8') as f:
-                json.dump(history, f, indent=4, ensure_ascii=False)
-                
-            return {"success": True}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        with self._history_lock:
+            try:
+                history = self._read_history_locked()
+                if index < 0 or index >= len(history):
+                    return {"success": False, "error": "Invalid index."}
+
+                item = history[index]
+
+                if delete_file:
+                    self._delete_file_for_item(item)
+
+                history.pop(index)
+                with open(self._history_file, 'w', encoding='utf-8') as f:
+                    json.dump(history, f, indent=4, ensure_ascii=False)
+                return {"success": True}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+
+    def clear_history(self, delete_files=False):
+        """
+        Hapus seluruh riwayat unduhan dalam satu operasi atomik.
+        Jika delete_files = True, hapus juga file fisiknya dari disk.
+        """
+        with self._history_lock:
+            try:
+                history = self._read_history_locked()
+                if delete_files:
+                    for item in history:
+                        self._delete_file_for_item(item)
+                with open(self._history_file, 'w', encoding='utf-8') as f:
+                    json.dump([], f)
+                return {"success": True}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
 
     def open_folder(self, folder_path):
         """
@@ -541,6 +644,16 @@ class Api:
         
         try:
             os.startfile(os.path.normpath(folder_path))
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def open_ffmpeg_folder(self):
+        """Buka folder %APPDATA%\\Fetchr\\bin\\ di File Explorer (buat jika belum ada)."""
+        ffmpeg_dir = get_ffmpeg_appdata_dir()
+        os.makedirs(ffmpeg_dir, exist_ok=True)
+        try:
+            os.startfile(os.path.normpath(ffmpeg_dir))
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -563,8 +676,6 @@ class Api:
         # Jika masih belum ditemukan (misal karena perbedaan ekstensi pasca-merging oleh FFmpeg),
         # kita lakukan pencarian berbasis wildcard (glob) pada nama basis berkas
         if not os.path.exists(file_path):
-            import glob
-            
             # Ambil nama basis tanpa ekstensi
             base_name, _ = os.path.splitext(filename)
             sanitized_base = sanitize_filename(base_name)
@@ -632,9 +743,12 @@ class Api:
 
     def open_url(self, url):
         """
-        Buka URL di browser default sistem.
+        Buka URL di browser default sistem. Hanya http/https yang diizinkan.
         """
         try:
+            from urllib.parse import urlparse
+            if urlparse(url).scheme not in ('http', 'https'):
+                return {"success": False, "error": "Only http/https URLs are allowed."}
             webbrowser.open(url)
             return {"success": True}
         except Exception as e:

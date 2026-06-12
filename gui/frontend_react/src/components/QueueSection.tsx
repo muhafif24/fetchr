@@ -16,6 +16,8 @@ export interface QueueItem {
 const QUEUE_FORMATS = [
   { id: 'best',      label: 'Best Quality (Auto)' },
   { id: 'bestaudio', label: 'Audio Only (MP3)' },
+  { id: '2160',      label: '4K Ultra HD (2160p)' },
+  { id: '1440',      label: '2K QHD (1440p)' },
   { id: '1080',      label: '1080p Full HD' },
   { id: '720',       label: '720p HD' },
   { id: '480',       label: '480p' },

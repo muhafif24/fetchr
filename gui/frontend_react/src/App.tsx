@@ -273,12 +273,13 @@ export default function App() {
     if (!api) return;
     setIsClearing(true);
     try {
-      // Hapus dari index terakhir agar index tetap valid selama loop
-      for (let i = history.length - 1; i >= 0; i--) {
-        await api.delete_history_item(i, clearAllDeleteFiles);
+      const res = await api.clear_history(clearAllDeleteFiles);
+      if (res.success) {
+        setHistory([]);
+        showToast('success', clearAllDeleteFiles ? 'History cleared and files deleted.' : 'History cleared.');
+      } else {
+        showToast('error', `Failed to clear history: ${res.error}`);
       }
-      await loadHistory();
-      showToast('success', clearAllDeleteFiles ? 'History cleared and files deleted.' : 'History cleared.');
     } catch (err: any) {
       showToast('error', `Failed to clear history: ${err.message}`);
     } finally {
@@ -373,7 +374,14 @@ export default function App() {
         setCurrentVideo(result as VideoInfo);
         setSelectedFormat('best'); setSubtitleEnabled(false);
         const subs = result.subtitles || [];
-        setSubtitleLang(subs.find((s: any) => !s.auto)?.code || subs[0]?.code || 'en');
+        const preferred = appSettingsRef.current.subtitleLang || 'en';
+        const defaultSub =
+          subs.find((s: any) => !s.auto && s.code === preferred) ||
+          subs.find((s: any) => !s.auto) ||
+          subs.find((s: any) => s.code === preferred) ||
+          subs.find((s: any) => s.code === 'en') ||
+          subs[0];
+        setSubtitleLang(defaultSub?.code || preferred);
       } else { setAnalysisError(result.error || 'Analysis failed.'); }
     } catch (err: any) { setAnalysisError(err.message || 'An error occurred.'); }
     finally { setIsAnalyzing(false); }
@@ -395,11 +403,13 @@ export default function App() {
       : selectedFormat;
 
     const currentUrl = url.trim();
-    const res = await api.start_download(currentUrl, selectedFormat, outputDir, subtitleEnabled ? subtitleLang : null, embedSubs);
+    const subtitleIsAuto = currentVideo.subtitles.find(s => s.code === subtitleLang)?.auto ?? false;
+    const res = await api.start_download(currentUrl, selectedFormat, outputDir, subtitleEnabled ? subtitleLang : null, embedSubs, subtitleIsAuto);
     if (res.success && res.download_id) {
       const dId = res.download_id;
       setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: currentVideo.title, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel, formatId: selectedFormat, url: currentUrl, folder: outputDir, isResuming: false } }));
       setCurrentVideo(null); setUrl(''); setSubtitleEnabled(false);
+      setActiveTab('queue');
     } else { showToast('error', `Failed to start download: ${res.error}`); }
   };
 
@@ -408,6 +418,7 @@ export default function App() {
     if (!api) return;
     const FORMAT_LABELS: Record<string, string> = {
       best: 'Best Quality (Auto)', bestaudio: 'Audio Only (MP3)',
+      '2160': '4K Ultra HD (2160p)', '1440': '2K QHD (1440p)',
       '1080': '1080p Full HD', '720': '720p HD', '480': '480p', '360': '360p',
     };
     const dir = outputDirRef.current;

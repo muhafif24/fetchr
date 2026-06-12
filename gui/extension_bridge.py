@@ -2,7 +2,7 @@ import os
 import json
 import secrets
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from utils import get_app_data_dir
 from version import APP_VERSION
 
@@ -26,7 +26,8 @@ def get_or_create_token() -> str:
     path = _token_path()
     try:
         if os.path.exists(path):
-            tok = open(path).read().strip()
+            with open(path, 'r') as f:
+                tok = f.read().strip()
             if len(tok) == 64:
                 _tok_cache = tok
                 return tok
@@ -50,8 +51,9 @@ def _new_token() -> str:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w') as f:
             f.write(tok)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[Fetchr] Warning: could not persist bridge token ({e}). "
+              "Token will reset on next restart.")
     _tok_cache = tok
     return tok
 
@@ -119,10 +121,10 @@ class _Handler(BaseHTTPRequestHandler):
         return secrets.compare_digest(auth[7:], self.server.token)
 
     # Preset format yang diizinkan dari extension (whitelist — cegah injeksi)
-    ALLOWED_FORMATS = {"best", "bestaudio", "1080", "720", "480", "360"}
+    ALLOWED_FORMATS = {"best", "bestaudio", "2160", "1440", "1080", "720", "480", "360"}
 
     def do_POST(self):
-        if self.path not in ("/send-url", "/download"):
+        if self.path not in ("/send-url", "/download", "/focus", "/analyze"):
             self.send_response(404)
             self.end_headers()
             return
@@ -132,6 +134,31 @@ class _Handler(BaseHTTPRequestHandler):
 
         if not self._valid_token():
             self._json(403, {"ok": False, "error": "Invalid token"})
+            return
+
+        # /focus — bawa app window ke foreground
+        if self.path == "/focus":
+            if self.server.on_focus:
+                self.server.on_focus()
+            self._json(200, {"ok": True})
+            return
+
+        # /analyze — fetch format yang tersedia untuk URL (blocking, ~2-5s)
+        if self.path == "/analyze":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body   = json.loads(self.rfile.read(length))
+                url    = (body.get("url") or "").strip()
+                if not url:
+                    self._json(400, {"ok": False, "error": "Missing url"})
+                    return
+                if self.server.on_analyze:
+                    formats = self.server.on_analyze(url)
+                    self._json(200, {"ok": True, "formats": formats})
+                else:
+                    self._json(503, {"ok": False, "error": "Analyze not available"})
+            except Exception as exc:
+                self._json(500, {"ok": False, "error": str(exc)})
             return
 
         try:
@@ -163,7 +190,7 @@ class _Handler(BaseHTTPRequestHandler):
 
 # ── Lifecycle ──────────────────────────────────────────────────────────────────
 
-def start_bridge(on_url_callback, on_download_callback=None) -> int | None:
+def start_bridge(on_url_callback, on_download_callback=None, on_focus_callback=None, on_analyze_callback=None) -> int | None:
     """Start the bridge server. Returns the bound port, or None if all ports are taken.
 
     on_url_callback(url)              — dipanggil untuk POST /send-url
@@ -175,10 +202,12 @@ def start_bridge(on_url_callback, on_download_callback=None) -> int | None:
 
     for candidate in range(DEFAULT_PORT, DEFAULT_PORT + 5):
         try:
-            srv = HTTPServer(("127.0.0.1", candidate), _Handler)
+            srv = ThreadingHTTPServer(("127.0.0.1", candidate), _Handler)
             srv.token       = token
             srv.on_url      = on_url_callback
             srv.on_download = on_download_callback
+            srv.on_focus    = on_focus_callback
+            srv.on_analyze  = on_analyze_callback
             threading.Thread(target=srv.serve_forever, daemon=True).start()
             _server, _port = srv, candidate
             return candidate
