@@ -12,12 +12,40 @@ import webbrowser
 import webview
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import sanitize_filename
-from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, get_settings_path, get_ffmpeg_appdata_dir, get_extension_dir, format_size, format_duration, migrate_legacy_app_data
+from utils import check_ffmpeg, check_js_runtime, get_app_data_dir, get_settings_path, get_ffmpeg_appdata_dir, get_extension_dir, format_size, format_duration, migrate_legacy_app_data, get_logger
 from extension_bridge import get_or_create_token, regenerate_token, get_active_port
 from downloader import DownloadManager
 from version import APP_VERSION
 
 GITHUB_REPO = "muhafif24/Fetchr"
+MAX_HISTORY_ITEMS = 50
+
+logger = get_logger()
+
+
+def _make_ssl_ctx() -> ssl.SSLContext:
+    """SSL context dengan certifi jika tersedia, fallback ke default."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+
+def _make_ssl_ctx_insecure() -> ssl.SSLContext:
+    """Unverified SSL context untuk jaringan dengan inspeksi SSL (corporate proxy, antivirus)."""
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
+def _atomic_write_json(path: str, data) -> None:
+    """Tulis JSON ke file sementara lalu rename — aman jika proses mati di tengah jalan."""
+    tmp = path + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+    os.replace(tmp, path)
 
 # ── Subtitle language lookup ──────────────────────────────────────────────────
 _LANG_NAMES = {
@@ -99,16 +127,32 @@ class Api:
 
     def _ensure_history_exists(self):
         if not os.path.exists(self._history_file):
-            with open(self._history_file, 'w', encoding='utf-8') as f:
-                json.dump([], f)
+            _atomic_write_json(self._history_file, [])
 
     def _read_history_locked(self) -> list:
         """Baca history.json — HARUS dipanggil di dalam _history_lock."""
         try:
             with open(self._history_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except Exception:
+        except Exception as e:
+            logger.error(f"history.json unreadable ({e}), resetting to empty list")
+            _atomic_write_json(self._history_file, [])
             return []
+
+    def _find_video_file(self, folder: str, filename: str) -> str | None:
+        """Cari file video di folder — coba nama asli, sanitized, lalu glob wildcard."""
+        path = os.path.join(folder, filename)
+        if os.path.exists(path):
+            return path
+        base, _ = os.path.splitext(filename)
+        sanitized = sanitize_filename(base)
+        for pattern in [os.path.join(folder, f"{base}.*"),
+                        os.path.join(folder, f"{sanitized}.*")]:
+            matches = [m for m in glob.glob(pattern)
+                       if not m.endswith('.part') and not m.endswith('.ytdl')]
+            if matches:
+                return matches[0]
+        return None
 
     def _delete_file_for_item(self, item: dict):
         """Hapus file fisik untuk satu history item jika ada."""
@@ -116,24 +160,12 @@ class Api:
         filename = item.get("filename")
         if not folder or not filename:
             return
-        file_path = os.path.join(folder, filename)
-        if not os.path.exists(file_path):
-            base_name, _ = os.path.splitext(filename)
-            sanitized_base = sanitize_filename(base_name)
-            for pattern in [
-                os.path.join(folder, f"{base_name}.*"),
-                os.path.join(folder, f"{sanitized_base}.*"),
-            ]:
-                matches = [m for m in glob.glob(pattern)
-                           if not m.endswith('.part') and not m.endswith('.ytdl')]
-                if matches:
-                    file_path = matches[0]
-                    break
-        if os.path.exists(file_path):
+        file_path = self._find_video_file(folder, filename)
+        if file_path:
             try:
                 os.remove(file_path)
             except Exception as e:
-                print(f"Failed to delete file: {e}")
+                logger.warning("Failed to delete file %s: %s", file_path, e)
 
     def _load_settings(self):
         try:
@@ -256,15 +288,6 @@ class Api:
                     f"if(window.onFfmpegComplete){{window.onFfmpegComplete({json.dumps(success)},{json.dumps(error)});}}"
                 )
 
-        def _make_ssl_ctx():
-            ctx = ssl.create_default_context()
-            try:
-                import certifi
-                ctx = ssl.create_default_context(cafile=certifi.where())
-            except ImportError:
-                pass
-            return ctx
-
         try:
             os.makedirs(ffmpeg_dir, exist_ok=True)
             push(0)
@@ -277,11 +300,7 @@ class Api:
             try:
                 response = urllib.request.urlopen(req, context=ctx, timeout=120)
             except (ssl.SSLError, urllib.error.URLError):
-                # urllib membungkus SSLError dalam URLError — buat context baru tanpa verifikasi
-                fallback_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                fallback_ctx.check_hostname = False
-                fallback_ctx.verify_mode = ssl.CERT_NONE
-                response = urllib.request.urlopen(req, context=fallback_ctx, timeout=120)
+                response = urllib.request.urlopen(req, context=_make_ssl_ctx_insecure(), timeout=120)
 
             total = int(response.headers.get('Content-Length', 0) or 0)
             downloaded = 0
@@ -449,16 +468,21 @@ class Api:
                     subtitles.append({'code': code, 'name': name, 'auto': False})
                     seen_codes.add(code)
 
-                # Auto-generated captions — all available languages, sorted by priority
+                # Auto-generated captions — hanya bahasa dalam daftar prioritas (bukan semua 100+ bahasa)
                 auto_entries = []
+                _priority_set = set(_LANG_PRIORITY)
                 for code, _ in (info.get('automatic_captions') or {}).items():
                     if code in seen_codes or code == 'live_chat':
                         continue
-                    name = _LANG_NAMES.get(code, code)
+                    # Hanya tampilkan auto-caption untuk bahasa yang dikenal & diprioritaskan
+                    base_code = code.split('-')[0]  # zh-Hans → zh
+                    if code not in _priority_set and base_code not in _priority_set:
+                        continue
+                    name = _LANG_NAMES.get(code, _LANG_NAMES.get(base_code, code))
                     auto_entries.append({'code': code, 'name': f'{name} (auto)', 'auto': True})
                     seen_codes.add(code)
 
-                auto_entries.sort(key=lambda x: (_LANG_PRIORITY_RANK.get(x['code'], 999), x['code']))
+                auto_entries.sort(key=lambda x: (_LANG_PRIORITY_RANK.get(x['code'], _LANG_PRIORITY_RANK.get(x['code'].split('-')[0], 999)), x['code']))
                 subtitles.extend(auto_entries)
 
                 return {
@@ -587,12 +611,11 @@ class Api:
                     "filename": filename
                 }
                 history.insert(0, new_item)
-                history = history[:50]
-                with open(self._history_file, 'w', encoding='utf-8') as f:
-                    json.dump(history, f, indent=4, ensure_ascii=False)
+                history = history[:MAX_HISTORY_ITEMS]
+                _atomic_write_json(self._history_file, history)
                 return True
             except Exception as e:
-                print(f"Failed to save history: {e}")
+                logger.error("Failed to save history: %s", e)
                 return False
 
     def delete_history_item(self, index, delete_file):
@@ -612,8 +635,7 @@ class Api:
                     self._delete_file_for_item(item)
 
                 history.pop(index)
-                with open(self._history_file, 'w', encoding='utf-8') as f:
-                    json.dump(history, f, indent=4, ensure_ascii=False)
+                _atomic_write_json(self._history_file, history)
                 return {"success": True}
             except Exception as e:
                 return {"success": False, "error": str(e)}
@@ -629,8 +651,7 @@ class Api:
                 if delete_files:
                     for item in history:
                         self._delete_file_for_item(item)
-                with open(self._history_file, 'w', encoding='utf-8') as f:
-                    json.dump([], f)
+                _atomic_write_json(self._history_file, [])
                 return {"success": True}
             except Exception as e:
                 return {"success": False, "error": str(e)}
@@ -639,7 +660,7 @@ class Api:
         """
         Membuka folder penyimpanan di File Explorer Windows.
         """
-        if not folder_path or not os.path.exists(folder_path):
+        if not folder_path or not os.path.isdir(folder_path):
             return {"success": False, "error": "Folder not found."}
         
         try:
@@ -664,41 +685,11 @@ class Api:
         """
         if not folder_path or not filename:
             return {"success": False, "error": "Missing required parameters."}
-            
-        # Pengecekan path asli langsung
-        file_path = os.path.join(folder_path, filename)
-        
-        if not os.path.exists(file_path):
-            # Coba cari nama berkas yang disanitasi
-            sanitized_name = sanitize_filename(filename)
-            file_path = os.path.join(folder_path, sanitized_name)
-            
-        # Jika masih belum ditemukan (misal karena perbedaan ekstensi pasca-merging oleh FFmpeg),
-        # kita lakukan pencarian berbasis wildcard (glob) pada nama basis berkas
-        if not os.path.exists(file_path):
-            # Ambil nama basis tanpa ekstensi
-            base_name, _ = os.path.splitext(filename)
-            sanitized_base = sanitize_filename(base_name)
-            
-            # Pola pencarian wildcard
-            patterns = [
-                os.path.join(folder_path, f"{base_name}.*"),
-                os.path.join(folder_path, f"{sanitized_base}.*")
-            ]
-            
-            found = False
-            for pattern in patterns:
-                matches = glob.glob(pattern)
-                # Filter agar tidak mencocokkan file part temporer yt-dlp (.part, .ytdl)
-                valid_matches = [m for m in matches if not m.endswith('.part') and not m.endswith('.ytdl')]
-                if valid_matches:
-                    file_path = valid_matches[0]
-                    found = True
-                    break
-                    
-            if not found:
-                return {"success": False, "error": "Video file not found."}
-            
+
+        file_path = self._find_video_file(folder_path, filename)
+        if not file_path:
+            return {"success": False, "error": "Video file not found."}
+
         try:
             os.startfile(os.path.normpath(file_path))
             return {"success": True}
@@ -713,7 +704,12 @@ class Api:
         try:
             api_url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
             req = urllib.request.Request(api_url, headers={"User-Agent": f"Fetchr/{APP_VERSION}"})
-            with urllib.request.urlopen(req, timeout=6) as resp:
+            ctx = _make_ssl_ctx()
+            try:
+                resp = urllib.request.urlopen(req, context=ctx, timeout=6)
+            except (ssl.SSLError, urllib.error.URLError):
+                resp = urllib.request.urlopen(req, context=_make_ssl_ctx_insecure(), timeout=6)
+            with resp:
                 data = json.loads(resp.read().decode())
 
             latest_tag = data.get("tag_name", "").lstrip("vV")

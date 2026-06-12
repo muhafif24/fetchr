@@ -19,6 +19,9 @@ import { SettingsPage } from './components/SettingsPage';
 import { FFmpegSetupModal } from './components/FFmpegSetupModal';
 import { DEFAULT_SETTINGS, type AppSettings } from './hooks/usePyApi';
 
+const TOAST_DISMISS_MS = 4000;
+const DOWNLOAD_AUTO_DISMISS_MS = 4000;
+
 export default function App() {
   const { api, isReady } = usePyApi();
 
@@ -107,7 +110,7 @@ export default function App() {
   const showToast = (type: ToastType, message: string) => {
     const id = crypto.randomUUID();
     setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), TOAST_DISMISS_MS);
   };
   const dismissToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
 
@@ -327,7 +330,7 @@ export default function App() {
     setQueueItems((prev) => prev.map((q) => (q.downloadId === downloadId ? { ...q, status: 'done' } : q)));
     setTimeout(() => {
       setActiveDownloads((prev) => { const copy = { ...prev }; delete copy[downloadId]; return copy; });
-    }, 4000);
+    }, DOWNLOAD_AUTO_DISMISS_MS);
 
     // Auto-advance queue: start next pending item if slot is available
     const limit = appSettingsRef.current.concurrentDownloads;
@@ -403,11 +406,14 @@ export default function App() {
       : selectedFormat;
 
     const currentUrl = url.trim();
-    const subtitleIsAuto = currentVideo.subtitles.find(s => s.code === subtitleLang)?.auto ?? false;
+    // Cari match exact dulu, lalu fallback ke base code (zh-Hans → zh)
+    const subtitleEntry = currentVideo.subtitles.find(s => s.code === subtitleLang)
+      ?? currentVideo.subtitles.find(s => s.code === subtitleLang.split('-')[0]);
+    const subtitleIsAuto = subtitleEntry?.auto ?? true; // default true = lebih aman (pakai writeautomaticsub)
     const res = await api.start_download(currentUrl, selectedFormat, outputDir, subtitleEnabled ? subtitleLang : null, embedSubs, subtitleIsAuto);
     if (res.success && res.download_id) {
       const dId = res.download_id;
-      setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: currentVideo.title, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel, formatId: selectedFormat, url: currentUrl, folder: outputDir, isResuming: false } }));
+      setActiveDownloads((prev) => ({ ...prev, [dId]: { id: dId, title: currentVideo.title, progress: 0, speed: '—', downloaded: '0 B', total: '—', eta: '—', status: 'starting', phase: 1, formatLabel, formatId: selectedFormat, url: currentUrl, folder: outputDir, isResuming: false, subtitleLang: subtitleEnabled ? subtitleLang : null, embedSubs, subtitleIsAuto } }));
       setCurrentVideo(null); setUrl(''); setSubtitleEnabled(false);
       setActiveTab('queue');
     } else { showToast('error', `Failed to start download: ${res.error}`); }
@@ -509,7 +515,10 @@ export default function App() {
     if (!api) return;
     const item = activeDownloadsRef.current[id];
     if (!item) return;
-    const res = await api.start_download(item.url, item.formatId, item.folder);
+    const res = await api.start_download(
+      item.url, item.formatId, item.folder,
+      item.subtitleLang ?? null, item.embedSubs ?? true, item.subtitleIsAuto ?? true
+    );
     if (res.success && res.download_id) {
       const newId = res.download_id;
       setActiveDownloads((prev) => {

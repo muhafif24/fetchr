@@ -145,7 +145,10 @@ def main():
     api.set_window(window)
 
     # Start browser extension HTTP bridge
-    start_bridge(api._on_bridge_url, api._on_bridge_download, lambda: window.show(), api._on_bridge_analyze)
+    bridge_port = start_bridge(api._on_bridge_url, api._on_bridge_download, lambda: window.show(), api._on_bridge_analyze)
+    if bridge_port is None:
+        print("[Fetchr] Warning: extension bridge gagal bind di port 9099-9103. "
+              "Integrasi browser extension tidak akan tersedia.")
 
     # Tutup tombol X → sembunyikan ke tray, bukan keluar
     def on_closing():

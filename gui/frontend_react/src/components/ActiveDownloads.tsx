@@ -18,6 +18,9 @@ export interface ActiveDownload {
   folder: string;
   isResuming?: boolean;
   error?: string;
+  subtitleLang?: string | null;
+  embedSubs?: boolean;
+  subtitleIsAuto?: boolean;
 }
 
 interface Props {

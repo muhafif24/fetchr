@@ -7,6 +7,8 @@ from utils import get_app_data_dir
 from version import APP_VERSION
 
 DEFAULT_PORT = 9099
+_PORT_SCAN_COUNT = 5    # jumlah port yang dicoba: 9099–9103
+_TOKEN_HEX_LENGTH = 64  # panjang token hex = secrets.token_hex(32)
 
 _server   = None
 _port     = None
@@ -28,7 +30,7 @@ def get_or_create_token() -> str:
         if os.path.exists(path):
             with open(path, 'r') as f:
                 tok = f.read().strip()
-            if len(tok) == 64:
+            if len(tok) == _TOKEN_HEX_LENGTH:
                 _tok_cache = tok
                 return tok
     except Exception:
@@ -200,7 +202,7 @@ def start_bridge(on_url_callback, on_download_callback=None, on_focus_callback=N
 
     token = get_or_create_token()
 
-    for candidate in range(DEFAULT_PORT, DEFAULT_PORT + 5):
+    for candidate in range(DEFAULT_PORT, DEFAULT_PORT + _PORT_SCAN_COUNT):
         try:
             srv = ThreadingHTTPServer(("127.0.0.1", candidate), _Handler)
             srv.token       = token

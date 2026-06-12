@@ -33,11 +33,18 @@ function shortFormat(fmt: string): string {
 
 // H3 — human-readable relative date
 function relativeDate(dateStr: string): string {
-  const date = new Date(dateStr.split(' ')[0]);
+  const itemDateStr = dateStr.split(' ')[0]; // "YYYY-MM-DD" dari history
   const now = new Date();
+  const todayStr = now.toLocaleDateString('en-CA');     // "YYYY-MM-DD" lokal
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+
+  if (itemDateStr === todayStr)     return 'Today';
+  if (itemDateStr === yesterdayStr) return 'Yesterday';
+
+  const date = new Date(dateStr); // parse dengan komponen waktu agar akurat
   const diffDays = Math.floor((now.getTime() - date.getTime()) / 86_400_000);
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7)   return date.toLocaleDateString('en-US', { weekday: 'short' });
   if (diffDays < 365) return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });

@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 import subprocess
+import logging
 
 def get_resource_path(relative_path):
     """
@@ -231,3 +232,15 @@ def migrate_legacy_app_data():
         print(f"[Fetchr] Legacy folder removed: {old_dir}")
     except Exception as e:
         print(f"[Fetchr] Migration warning: {e}")
+
+
+def get_logger() -> logging.Logger:
+    """Singleton file logger. Tulis ke %APPDATA%\\Fetchr\\fetchr.log."""
+    log = logging.getLogger('fetchr')
+    if not log.handlers:
+        log_path = os.path.join(get_app_data_dir(), 'fetchr.log')
+        handler = logging.FileHandler(log_path, encoding='utf-8')
+        handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+        log.addHandler(handler)
+        log.setLevel(logging.INFO)
+    return log

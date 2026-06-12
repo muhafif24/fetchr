@@ -192,6 +192,74 @@ _(tidak ada saat ini)_
 
 ---
 
+## Peta Dokumentasi
+
+> Semua file docs yang ada di proyek ini, relasi antar dokumen, dan lokasinya.
+> `docs/` = publik (di-push ke GitHub) · `docs-local/` = privat (gitignored)
+
+### Dokumen Root
+
+| File | Lokasi | Tujuan | Terkait |
+|------|--------|--------|---------|
+| [README.md](README.md) | root | Deskripsi publik + setup singkat | `docs/`, `CHANGELOG.md` |
+| [CHANGELOG.md](CHANGELOG.md) | root | Riwayat perubahan per versi | `Fetchr - Master State.md` |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | root | Panduan kontribusi open source | `README.md`, `docs-local/setup/PANDUAN-FETCHR-OPENSOURCE.md` |
+| [Fetchr - Master State.md](Fetchr%20-%20Master%20State.md) | root | **Single source of truth** proyek | Semua docs |
+
+### docs/ — Publik
+
+| File | Tujuan | Terkait |
+|------|--------|---------|
+| [logo-fetchr.png](docs/logo-fetchr.png) | Logo aplikasi untuk README | `README.md` |
+| [fresh-install-testing.md](docs/fresh-install-testing.md) | Panduan simulasi fresh install + checklist verifikasi | `docs-local/testing/FUNCTIONAL-AUDIT-PLAN.md` |
+
+### docs-local/setup/ — Panduan Dev & Build
+
+| File | Tujuan | Terkait |
+|------|--------|---------|
+| [DEV-QUICKSTART.md](docs-local/setup/DEV-QUICKSTART.md) | Cara cepat jalankan app di dev mode | `docs-local/setup/BUILD-TUTORIAL.md` |
+| [BUILD-TUTORIAL.md](docs-local/setup/BUILD-TUTORIAL.md) | Tutorial build PyInstaller + Inno Setup lengkap | `DEV-QUICKSTART.md`, `features/browser-extension.md` |
+| [PANDUAN-FETCHR-OPENSOURCE.md](docs-local/setup/PANDUAN-FETCHR-OPENSOURCE.md) | Panduan open source: CI, lisensi, release | `README.md`, `CONTRIBUTING.md` |
+
+### docs-local/features/ — Catatan Implementasi Fitur
+
+| File | Tujuan | Terkait |
+|------|--------|---------|
+| [browser-extension.md](docs-local/features/browser-extension.md) | Arsitektur extension: bridge, token, manifest MV3 | `setup/BUILD-TUTORIAL.md`, `private/credentials-private.md` |
+| [ffmpeg-on-demand.md](docs-local/features/ffmpeg-on-demand.md) | Unduh FFmpeg ke AppData saat pertama kali | `setup/BUILD-TUTORIAL.md` |
+| [resume-download.md](docs-local/features/resume-download.md) | Pause & resume via `_PauseDownload` + `.part` file | `features/progress-detail.md` |
+| [progress-detail.md](docs-local/features/progress-detail.md) | Progress real-time: speed, ETA, fase download | `features/resume-download.md` |
+| [settings-page.md](docs-local/features/settings-page.md) | Rancangan halaman Settings + `settings.json` | — |
+| [update-system.md](docs-local/features/update-system.md) | Auto-update via GitHub Releases API | — |
+| [windows-notification.md](docs-local/features/windows-notification.md) | Notifikasi Windows via plyer | — |
+
+### docs-local/testing/ — Pengujian
+
+| File | Tujuan | Terkait |
+|------|--------|---------|
+| [FUNCTIONAL-AUDIT-PLAN.md](docs-local/testing/FUNCTIONAL-AUDIT-PLAN.md) | Checklist audit fungsional semua fitur v1.5.0 | `docs/fresh-install-testing.md` |
+
+### docs-local/planning/ — Perencanaan
+
+| File | Tujuan | Terkait |
+|------|--------|---------|
+| [roadmap.md](docs-local/planning/roadmap.md) | Status semua fitur (semua ✅ Done per v1.5.0) | `Fetchr - Master State.md` |
+
+### docs-local/archive/ — Dokumen Selesai
+
+| File | Tujuan | Status |
+|------|--------|--------|
+| [UI-Redesign-Plan.md](docs-local/archive/UI-Redesign-Plan.md) | Rencana redesign visual v1.5.0 | ✅ Diimplementasikan di v1.5.0 |
+| [REMINDER-firefox-xpi-signing.md](docs-local/archive/REMINDER-firefox-xpi-signing.md) | Proses signing Firefox XPI v1.1.0 | ✅ Selesai 2026-06-11 |
+
+### docs-local/private/ — Privat
+
+| File | Tujuan | Terkait |
+|------|--------|---------|
+| [credentials-private.md](docs-local/private/credentials-private.md) | JWT issuer/secret Mozilla AMO untuk re-sign extension Firefox | `features/browser-extension.md` |
+
+---
+
 ## References
 
 - Repo: https://github.com/muhafif24/Fetchr

@@ -1,4 +1,5 @@
 import os
+import glob
 import json
 import threading
 import traceback
@@ -116,8 +117,13 @@ class DownloadManager:
         ffmpeg_info = check_ffmpeg()
         js_info = check_js_runtime()
 
+        _HEIGHT_PRESETS = {'2160', '1440', '1080', '720', '480', '360'}
+        _RES_LABEL = {'360': '360p', '480': '480p', '720': '720p', '1080': '1080p', '1440': '2K', '2160': '4K'}
+        # Suffix resolusi di nama file — cegah file overwrite antar resolusi berbeda
+        res_suffix = f" [{_RES_LABEL[format_id]}]" if format_id in _RES_LABEL else ""
+
         ydl_opts = {
-            'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
+            'outtmpl': os.path.join(output_path, f'%(title)s{res_suffix}.%(ext)s'),
             'progress_hooks': [lambda d: self._progress_hook(download_id, d)],
             'noplaylist': True,
             'continuedl': True,  # keep .part file so paused downloads can resume
@@ -135,20 +141,25 @@ class DownloadManager:
             ydl_opts['ffmpeg_location'] = os.path.dirname(ffmpeg_info["ffmpeg_path"])
 
         if subtitle_lang and format_id != 'bestaudio':
+            # Selalu pakai writeautomaticsub — lebih kompatibel untuk auto-generated captions
+            # writesubtitles hanya untuk manual subs (yang benar-benar video-provided)
             if subtitle_is_auto:
                 ydl_opts['writeautomaticsub'] = True
             else:
                 ydl_opts['writesubtitles'] = True
+                ydl_opts['writeautomaticsub'] = True  # fallback jika manual sub tidak ada
             ydl_opts['subtitleslangs'] = [subtitle_lang]
-            ydl_opts['subtitlesformat'] = 'srt/vtt/best'
-            ydl_opts['sleep_interval_subtitles'] = 2  # 2s gap prevents 429 on auto-translated subs
-            ydl_opts['extractor_retries'] = 3         # retry info extraction on rate limit
+            # Hindari 'best' — bisa download json3/srv3 yang tidak bisa di-embed FFmpeg
+            ydl_opts['subtitlesformat'] = 'srt/vtt/ttml'
+            ydl_opts['sleep_interval_subtitles'] = 2
+            ydl_opts['retries'] = 3
+            ydl_opts['fragment_retries'] = 3
             if embed_subs and ffmpeg_info["available"]:
+                # WebM tidak support embedded subtitle — paksa mp4 agar embed berhasil
+                ydl_opts['merge_output_format'] = 'mp4'
                 ydl_opts.setdefault('postprocessors', []).append(
                     {'key': 'FFmpegEmbedSubtitle', 'already_have_subtitle': False}
                 )
-
-        _HEIGHT_PRESETS = {'2160', '1440', '1080', '720', '480', '360'}
 
         if format_id == "bestaudio":
             ydl_opts.update({
@@ -180,11 +191,38 @@ class DownloadManager:
 
                 # process_info reuses already-fetched info — avoids second info-page
                 # request that previously caused 429 rate limiting
-                ydl.process_info(info)
+                try:
+                    ydl.process_info(info)
+                except Exception as sub_err:
+                    err_str = str(sub_err).lower()
+                    # Subtitle/postprocessor error — video sudah ada di disk (download selesai
+                    # sebelum embed gagal). Cukup warn; jangan re-download karena mubazir dan
+                    # bisa kena rate-limit. Hindari 'ffmpeg' agar error "FFmpeg not found" tidak
+                    # tersamarkan sebagai kesuksesan.
+                    if subtitle_lang and any(k in err_str for k in ('subtitle', 'postprocess', 'embed', 'convert')):
+                        print(f"[Fetchr] Warning: subtitle embed failed ({sub_err}), video saved without subtitles.")
+                    else:
+                        raise
+                finally:
+                    # Best-effort cleanup subtitle sisa — jalan bahkan jika error di-raise.
+                    # Cover skenario: re-raised error, non-subtitle error, dan variasi lang code.
+                    if embed_subs and subtitle_lang and format_id != 'bestaudio' and ffmpeg_info["available"]:
+                        _base = os.path.join(output_path, f"{sanitize_filename(title)}{res_suffix}")
+                        for _se in ('srt', 'vtt', 'ttml', 'ass', 'json3', 'srv3', 'srv2', 'srv1'):
+                            for _sf in glob.glob(f"{_base}.*.{_se}"):
+                                try:
+                                    os.remove(_sf)
+                                except OSError:
+                                    pass
 
             if self._window:
                 sanitized_title = sanitize_filename(title)
-                filename = f"{sanitized_title}.mp3" if format_id == "bestaudio" else f"{sanitized_title}.{ext}"
+                if format_id == "bestaudio":
+                    filename = f"{sanitized_title}.mp3"
+                else:
+                    # Jika embed subtitle berhasil (merge_output_format=mp4), ext jadi 'mp4'
+                    actual_ext = 'mp4' if (embed_subs and subtitle_lang and format_id != 'bestaudio') else ext
+                    filename = f"{sanitized_title}{res_suffix}.{actual_ext}"
                 self._window.evaluate_js(
                     f"if(window.onDownloadComplete){{window.onDownloadComplete({json.dumps(download_id)},{json.dumps(filename)});}}"
                 )
