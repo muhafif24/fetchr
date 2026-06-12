@@ -21,6 +21,8 @@ Fetchr adalah GUI desktop modern untuk yt-dlp — memungkinkan pengguna mendownl
 | Versi aktif | **1.5.0** |
 | Stabilitas | Stabil — siap rilis |
 | Dev mode | Berjalan via `FETCHR_DEV=1` + Vite (default port 5173, auto-5176 jika konflik) |
+| Branch | `main` — up to date dengan origin |
+| Last commit | `9a34fc5` feat: extension B-lite + bridge security hardening |
 
 ---
 
@@ -162,7 +164,8 @@ _(lihat `docs-local/` untuk detail)_
 | 2026-06-11 | `ClearHistoryModal` menggantikan `window.confirm()` | Dialog native putih jarring & tak bertema; modal baru menyediakan opsi hapus file disk vs hapus history saja, konsisten dengan DeleteModal |
 | 2026-06-11 | Extension B-lite (pilih format di popup) | Endpoint `/download` baru, route lewat `window.onReceiveDownload` agar reuse infra UI Queue (analisa tidak perlu — yt-dlp terima format selector langsung) |
 | 2026-06-11 | Bridge di-hardening (Origin/Host/timing-safe) | Defense-in-depth: walau sudah loopback+token, tambahan tolak Origin web + anti DNS-rebind + compare_digest |
-| 2026-06-11 | Firefox via XPI signed (web-ext sign, unlisted) | Install permanen; kredensial AMO di `docs-local/credentials-private.md`. Helper `extension/fetch-signed-xpi.py` untuk ambil XPI setelah Mozilla selesai signing |
+| 2026-06-11 | Firefox via XPI signed (web-ext sign, unlisted) | Install permanen; kredensial AMO di `docs-local/private/credentials-private.md`. Helper `extension/fetch-signed-xpi.py` untuk ambil XPI setelah Mozilla selesai signing |
+| 2026-06-12 | `get_extension_dir()` prioritaskan repo di dev mode | Cek `sys.frozen` — dev pakai repo `extension/` terlebih dulu; frozen/installed pakai AppData. Mencegah folder AppData lama menyembunyikan file terbaru saat development |
 
 ---
 
@@ -183,10 +186,9 @@ _(tidak ada saat ini)_
 
 ## Next Steps
 
-Tidak ada fitur baru yang direncanakan saat ini. Prioritas berikutnya:
-- Tag release `v1.4.0` di GitHub
+- Tag release `v1.5.0` di GitHub
 - Upload `Fetchr-setup.exe` ke GitHub Releases
-- Build dan sign Firefox XPI (`web-ext sign`) — lihat `docs-local/credentials-private.md`
+- Firefox XPI v1.1.0 sudah signed ✅ (`extension/fetchr-companion-firefox.xpi`)
 
 ---
 

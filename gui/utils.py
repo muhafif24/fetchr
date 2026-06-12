@@ -166,19 +166,24 @@ def get_app_data_dir():
 def get_extension_dir() -> str:
     """
     Return path to the browser extension folder.
-    Priority: AppData (installed by Inno Setup) → dev repo root → PyInstaller bundle.
+
+    Running from source (dev): repo root extension/ takes priority so edits are
+    immediately visible — an old AppData copy from a previous install must not
+    shadow it. Frozen build: AppData (installed by Inno Setup) takes priority.
     """
-    # 1. Production: Inno Setup copies extension/ to AppData\Fetchr\extension\
     appdata_ext = os.path.join(get_app_data_dir(), "extension")
-    if os.path.exists(os.path.join(appdata_ext, "manifest.json")):
-        return appdata_ext
-
-    # 2. Development: extension/ lives at the repo root (parent of gui/)
     dev_ext = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "extension")
-    if os.path.exists(os.path.join(dev_ext, "manifest.json")):
-        return dev_ext
 
-    # 3. Fallback: bundled via PyInstaller
+    if getattr(sys, 'frozen', False):
+        candidates = [appdata_ext, dev_ext]
+    else:
+        candidates = [dev_ext, appdata_ext]
+
+    for path in candidates:
+        if os.path.exists(os.path.join(path, "manifest.json")):
+            return path
+
+    # Fallback: bundled via PyInstaller
     return get_resource_path("extension")
 
 
